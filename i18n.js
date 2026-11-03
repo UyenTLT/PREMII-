@@ -172,6 +172,65 @@ Object.assign(translations, {
   "Continue": "續頁"
 });
 Object.assign(translations, {"Suggest PREMII items": "建議 PREMII 項目", "I checked the proposed values against the source for this infant and shift.": "我已核對此嬰兒與班別的病歷來源及建議值。", "Rule-based proposals only. History, negation and context may be misread. Verify every value; unrecognized items stay blank. Selected values will replace the corresponding form fields.": "僅提供規則式建議，可能誤讀病史、否定語句與上下文。請逐項核對；無法辨識的項目將留白。選取的值會取代對應表單欄位。", "No supported explicit observations found. Complete the form manually.": "未找到可辨識的明確觀察資料。請手動完成表單。", "Apply selected proposals": "套用選取建議", "Select at least one proposal to apply.": "請至少選取一項建議。", "Proposals applied. Complete missing fields and confirm your source review before saving.": "已套用建議。儲存前請補齊欄位並確認已核對來源。", "Factors / levels": "項目／程度"});
+Object.assign(translations, {
+  "Import documents": "匯入文件",
+  "Extracted observations": "擷取的觀察資料",
+  "File-only workflow": "僅從文件擷取",
+  "Your documents. Structured PREMII reports.": "從您的文件，產生結構化 PREMII 報告。",
+  "Upload medical records. Extract documented observations. Export the report. No manual data entry.": "上傳病歷、擷取記錄中的觀察資料並匯出報告。無需手動輸入資料。",
+  "All values come from your files.": "所有資料皆來自您的文件。",
+  "Missing or ambiguous items remain explicitly undocumented. Extraction uses text rules, not a validated clinical interpretation model; review the cited evidence. No total score is calculated.": "缺漏或不明確的項目會標示未記錄。系統使用文字規則擷取，並非經驗證的臨床判讀模型；請檢視引用的依據。不計算總分。",
+  "Import medical records": "匯入病歷",
+  "Choose TXT, DOCX or text-based PDF files. Processing starts automatically.": "選擇 TXT、DOCX 或文字型 PDF，系統將自動開始處理。",
+  "Source documents": "來源文件",
+  "Files are read locally, never uploaded. Maximum 10 MB per file and 200 PDF pages. Scanned PDFs need OCR first.": "文件僅在本機讀取，不會上傳。每檔上限 10 MB，PDF 上限 200 頁。掃描式 PDF 須先進行 OCR。",
+  "Clear session": "清除工作階段",
+  "FILE-DERIVED RESULTS": "文件擷取結果",
+  "Export selected PDF": "匯出選取記錄 PDF",
+  "Upload a file to generate PREMII observations automatically.": "上傳文件後即可自動產生 PREMII 觀察資料。",
+  "Date": "日期",
+  "Documented items": "已擷取項目",
+  "Study IDs and dated notes are separated when explicit headings exist. Note timestamps are not assumed to be shift boundaries. Unknown infant, date or shift remains undocumented.": "若有明確標題，系統會區分研究代碼與日期記錄。不將記錄時間視為班別起迄。無法辨識的嬰兒、日期或班別會標示未記錄。",
+  "SOURCE-BASED ASSESSMENT": "依據來源的評估",
+  "Results are automatically extracted and have not been clinically verified. The source below is read-only; there are no fields to enter or complete.": "結果由系統自動擷取，尚未經臨床驗證。下方來源僅供檢視，沒有需要輸入或補填的欄位。",
+  "View original source note": "檢視原始病歷記錄",
+  "How file-only extraction works": "文件擷取流程說明",
+  "Upload one or more files. The app separates explicit study ID headings and dated notes, then extracts supported observations and their evidence. You do not type patient information, dates, shifts, event counts or item codes.": "上傳一個或多個文件。系統依明確的研究代碼標題與日期記錄分段，再擷取可辨識的觀察資料及依據。不需輸入病人資訊、日期、班別、事件次數或項目代碼。",
+  "Use View source results to inspect an observation. Export selected PDF opens the print dialog: choose Save as PDF. The seven-page report follows the original PREMII sections and four-column layout. When a shift is not documented, it is labeled as an observation rather than assigned a shift number.": "使用「檢視來源結果」查看個別觀察。「匯出選取記錄 PDF」會開啟列印對話框，請選擇另存為 PDF。七頁報告依原始 PREMII 章節與四欄版面編排。若未記錄班別，會標示為觀察記錄，不會自行指定班別。",
+  "Not found in source means no supported evidence was extracted. It does not mean normal, zero or No. Conflicting explicit codes remain unresolved. Reports use source note scope when true shift boundaries are unavailable; they must not be treated as validated per-shift measurements.": "「來源中未找到」表示未擷取到可辨識的依據，不代表正常、零或否。互相衝突的明確代碼會保留為未解決。缺乏實際班別起迄時，報告以來源記錄為範圍，不得視為經驗證的每班測量。",
+  "Records stay in tab memory and disappear on refresh or close. JSON/CSV include evidence and missingness statuses. The original documents are not included in exports or uploaded to a server.": "記錄僅留於分頁記憶體，重新整理或關閉後即消失。JSON/CSV 包含擷取依據與缺漏狀態，不包含原始文件，也不會上傳至伺服器。",
+  "Based on the supplied English PREMII questionnaire and “PREMII 建立資料用”. Traditional Chinese wording and automated extraction require clinical review. © 2018 Shire Human Genetic Therapies, Inc. PREMII is a trademark of Shire, a Takeda company. Reports are adapted, not licensed original forms.": "依據提供的英文 PREMII 問卷及「PREMII 建立資料用」製作。繁體中文用語與自動擷取需經臨床審查。© 2018 Shire Human Genetic Therapies, Inc.。PREMII 為 Shire（Takeda 集團公司）的商標。報告為改編版，非原版授權表單。",
+  "All data from your files.": "所有資料皆來自您的文件。",
+  "View source results": "檢視來源結果",
+  "Not found in source": "來源中未找到",
+  "Conflicting source values": "來源數值互相衝突",
+  "Date not documented": "未記錄日期",
+  "Shift not documented": "未記錄班別",
+  "Infant ID not documented": "未記錄嬰兒代碼",
+  "Source line": "來源行",
+  "Reading and extracting documents…": "正在讀取並擷取文件…",
+  "observations extracted": "筆觀察已擷取",
+  "Extraction finished. Results contain only supported source observations; missing values remain undocumented.": "擷取完成。結果僅包含可辨識的來源觀察資料；缺漏值保持未記錄。",
+  "Clear all imported documents and extracted results?": "確定清除所有匯入文件與擷取結果？",
+  "PDF page limit exceeded.": "PDF 超過頁數上限。",
+  "Document text limit exceeded.": "文件文字超過長度上限。",
+  "Too many observations. Use smaller document batches.": "觀察記錄過多，請分批匯入較小的文件。",
+  "Apnea · Required intervention": "呼吸暫停 · 需要干預",
+  "Apnea · No intervention required": "呼吸暫停 · 不需要干預",
+  "Bradycardia · Required intervention": "心跳過緩 · 需要干預",
+  "Bradycardia · No intervention required": "心跳過緩 · 不需要干預",
+  "Desaturation · Required intervention": "血氧濃度過低 · 需要干預",
+  "Desaturation · No intervention required": "血氧濃度過低 · 不需要干預",
+  "Lowest documented weight in this note (g)": "此記錄中最低的已記錄體重（g）",
+  "File-based assessment": "文件擷取評估",
+  "Observation": "觀察記錄",
+  "Automatically extracted from the uploaded file. No manual data entry.": "自動從上傳文件擷取，無需手動輸入資料。",
+  "Source note timestamp": "來源記錄時間",
+  "Missing items are not normal findings, zeros or negative responses.": "缺漏項目不代表正常、零或否定答案。",
+  "This report describes one source note. A dated note is not assumed to cover a complete shift.": "本報告描述單一來源記錄，不假定有日期的記錄涵蓋完整班別。",
+  "Automated extraction is unverified. Review the source evidence before clinical use.": "自動擷取尚未經驗證。臨床使用前請檢視來源依據。"
+});
+Object.assign(translations, {"Template detected. Upload patient records, not a blank PREMII questionnaire.":"偵測到問卷範本。請上傳病歷資料，而非空白 PREMII 問卷。"});
 const reverseTranslations = new Map(Object.entries(translations).map(([en,zh])=>[zh,en]));
 let language='en';
 try { if(localStorage.getItem('premii-language')==='zh-Hant') language='zh-Hant'; } catch {}
@@ -187,21 +246,17 @@ function localizeDOM(){
  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
  let node;
  while((node=walker.nextNode())) {
-  if(node.parentElement.closest('script,style,#records-table tbody,input,textarea,#toast,#print-report,.suggestion-row blockquote')) continue;
+  if(node.parentElement.closest('script,style,#records-table tbody,input,textarea,#toast,#print-report,#extracted-fields,#selected-note,#source-context,#import-files,.suggestion-row blockquote')) continue;
   // Labels with decorative symbols retain their prefix.
   const raw=node.nodeValue;
-  const prefix=raw.match(/^(\s*[▦◷ⓘ●]\s*)/);
+  const prefix=raw.match(/^(\s*[▦◷ⓘ●↥]\s*)/);
   node.nodeValue=prefix?prefix[0]+translateText(raw.slice(prefix[0].length)):translateText(raw);
  }
  document.querySelectorAll('[placeholder],[aria-label]').forEach(el=>{
   if(el.closest('#records-table tbody')) return;
   for(const name of ['placeholder','aria-label']) if(el.hasAttribute(name)) el.setAttribute(name,translateText(el.getAttribute(name)));
  });
- // Rebuild event aria labels from stable codes, without touching entered values.
- ['Apnea','Bradycardia','Desaturation'].forEach((name,i)=>{
-  for(let j=1;j<=2;j++) document.querySelector(`[name="ABD${i+1}_${j}"]`)?.setAttribute('aria-label',`${t(name)} — ${t(j===1?'Required intervention':'No intervention required')}`);
- });
- document.title='PREMII · '+t('Preterm infant assessment');
+ document.title='PREMII · '+t('File-based assessment');
  document.querySelector('#language').value=language;
 }
 document.querySelector('#language').addEventListener('change',e=>{

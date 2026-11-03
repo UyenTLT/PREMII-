@@ -1,5 +1,5 @@
 'use strict';
-// Conservative text rules, not a clinical inference model. Operates only on a user-selected shift excerpt.
+// Conservative text rules, not a clinical inference model. Operates on a single separated source note; unknown values remain absent.
 function extractSuggestions(text){
  const found=new Map();
  const add=(field,value,evidence)=>{if(!found.has(field))found.set(field,{field,value:String(value),evidence:evidence.trim().slice(0,400)});};
@@ -17,11 +17,11 @@ function extractSuggestions(text){
  const positive=lines.filter(line=>!/(?:\b(?:no|not|without|off|stop(?:ped)?|discontinued|history|previous(?:ly)?|weaned)\b|未使用|未給予|無需|停用|移除|曾經|病史)/i.test(line));
  const resp=[];
  for(const line of positive){
-  if(/(?:\b(?:intubat(?:ed|ion)|endotracheal|tracheostomy|mechanical ventilation|SIMV|HFOV|NIPPV)\b|氣管插管|氣管造口)/i.test(line))resp.push([5,line]);
-  else if(/(?:\b(?:n?CPAP|HFNC|high[- ]flow nasal)\b|呼吸壓力輔助|高流量鼻導管)/i.test(line))resp.push([4,line]);
+  if(/(?:\b(?:intubat(?:ed|ion)|endotracheal|tracheostomy|mechanical ventilation|SIMV|HFOV)\b|氣管插管|氣管造口)/i.test(line))resp.push([5,line]);
+  else if(/(?:\b(?:n?CPAP|NIPPV|HFNC|high[- ]flow nasal)\b|呼吸壓力輔助|高流量鼻導管)/i.test(line))resp.push([4,line]);
   else if(/(?:nasal cannula|\bNC\b|鼻導管)/i.test(line)){
    const m=line.match(/(\d+(?:\.\d+)?)\s*(L\s*\/\s*min|LPM|cc\s*\/\s*min|mL\s*\/\s*min)/i);
-   if(m){const cc=+m[1]*(/^(?:L\s*\/|LPM)/i.test(m[2])?1000:1);if(cc>0){resp.push([cc>=2000?4:2,line]);if(cc<2000)add('RES3_1',cc,line);}}
+   if(m){const cc=+m[1]*(/^(?:L\s*\/|LPM)/i.test(m[2])?1000:1);if(cc>0){if(cc>=2000||/continuous|持續|連續/i.test(line))resp.push([cc>=2000?4:2,line]);if(cc<2000)add('RES3_1',cc,line);}}
   }
  }
  if(resp.length){resp.sort((a,b)=>b[0]-a[0]);add('RES1',resp[0][0],resp[0][1]);}
