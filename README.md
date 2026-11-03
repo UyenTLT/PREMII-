@@ -31,10 +31,12 @@ Upload your own TXT (UTF-8 or Big5), DOCX or text-based PDF, up to 10 MB (PDF: 2
 
 Select the relevant infant/shift passage, click **Use selected passage**, then **Suggest PREMII items**. Conservative rules propose supported explicit item codes and recognizable respiratory support, FiO2, weight, TPN, warming and caffeine statements. These rules are not an AI clinical interpreter: they can miss or misread negation, history, dates and context. Unknown values remain blank. Review the evidence, check proposals to apply, finish missing fields and confirm source verification before saving. Minimum weight is taken only within the chosen excerpt; it does not establish the measurement date or time. Supplemental low-flow source is not inferred.
 
-Export PDF opens the browser print dialog; choose **Save as PDF**, A4, with browser headers/footers disabled. The adapted seven-page report follows the supplied questionnaire sections and four-shift columns. Reports are grouped by infant/date, with additional groups after four saved observations, and use the selected language. This is a recreated report, not a pixel-identical or licensed reproduction of the original file. Source excerpts are not printed. JSON exports include the applied proposals and their evidence for audit; keep exports secure.
+Export PDF opens the browser print dialog; choose **Save as PDF**, A4, with browser headers/footers disabled. The adapted seven-page report follows the supplied questionnaire sections and four-shift columns. Reports are grouped by infant/date, with fixed Shift 1–4 columns and extra groups for repeated observations of the same shift, and use the selected language. This is a recreated report, not a pixel-identical or licensed reproduction of the original file. Source excerpts are not printed. JSON exports include the applied proposals and their evidence for audit; keep exports secure.
 
 `node tests/test-suggestions.cjs` verifies text proposal rules. The document readers' licenses are bundled in public/vendor.
 
 ## Free static hosting
 
 Publish the contents of `public/` to a static host such as GitHub Pages. The Python server is for local development only. GitHub Pages can publish a `gh-pages` branch at its root; configure this in repository Settings → Pages. Only app assets belong in that branch, never attachments, source medical records or exported assessments. Static hosting does not add accounts, persistent patient storage or synchronization.
+
+Published site: https://uyentlt.github.io/PREMII-/ . To update, commit website changes to main, then run `bash scripts/deploy-pages.sh`. The deployment script publishes only committed files from public/ and never uploads local medical records.
