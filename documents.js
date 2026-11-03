@@ -69,11 +69,12 @@ function buildReport(){
  for(const r of records){const key=JSON.stringify([r.infant,r.date]);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r);}
  for(const items of groups.values()){
   items.sort((a,b)=>Number(a.shift)-Number(b.shift)||a.start.localeCompare(b.start));
-  for(let offset=0;offset<items.length;offset+=4){
-   const shifts=items.slice(offset,offset+4);const infant=shifts[0];let pageNumber=0;
+  const buckets=Array.from({length:4},(_,i)=>items.filter(r=>Number(r.shift)===i+1));
+  for(let offset=0;offset<Math.max(...buckets.map(b=>b.length));offset++){
+   const shifts=buckets.map(b=>b[offset]??null);const infant=items[0];let pageNumber=0;
    function page(title){const p=reportNode('article',undefined,'report-page');p.append(reportNode('p',`PREMII™ · ${t('Infant ID')}: ${infant.infant} · ${infant.date}`,'report-header'),reportNode('h2',t(title)));report.append(p);return p;}
    function finish(p){p.append(reportNode('p',t('Original questionnaire: © 2018 Shire Human Genetic Therapies, Inc. PREMII is a trademark of Shire, a Takeda company.'),'report-footer'),reportNode('p',`${t('Adapted research report — not the original licensed form.')} · ${t('Page')} ${++pageNumber} / 7`,'report-footer'));}
-   function table(p){const table=reportNode('table');const head=reportNode('thead');const tr=reportNode('tr');tr.append(reportNode('th',t('Factors / levels')));for(let i=0;i<4;i++){const r=shifts[i];tr.append(reportNode('th',r?`${t('Shift')} ${r.shift}\n${r.start}–${r.end}`:t('No record')));}head.append(tr);table.append(head);const body=reportNode('tbody');table.append(body);p.append(table);return body;}
+   function table(p){const table=reportNode('table');const head=reportNode('thead');const tr=reportNode('tr');tr.append(reportNode('th',t('Factors / levels')));for(let i=0;i<4;i++){const r=shifts[i];tr.append(reportNode('th',`${t('Shift')} ${i+1}\n${r?`${r.start}–${r.end}`:t('No record')}`));}head.append(tr);table.append(head);const body=reportNode('tbody');table.append(body);p.append(table);return body;}
    function row(body,label,fn){const tr=reportNode('tr');tr.append(reportNode('td',t(label)));for(let i=0;i<4;i++)tr.append(reportNode('td',shifts[i]?String(fn(shifts[i])??'—'):''));body.append(tr);}
    function levels(body,name,indices){for(const index of indices){const source=options[name][index];const key=reverseTranslations.get(source)??source;row(body,key,r=>r[name]===null?t('Not applicable'):String(r[name])===String(index)?'☑':'☐');}}
    let p=page('PREMature Infant Index Questionnaire');p.append(reportNode('h1','PREMII™','cover-title'),reportNode('p',t('Record the worst experience observed during each shift.')),reportNode('p',t('No total score calculated. Blank columns indicate shifts with no saved record.')),reportNode('p',t('Adapted research report — not the original licensed form.')));finish(p);
