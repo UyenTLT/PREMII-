@@ -1,50 +1,51 @@
-# PREMII measurement workspace
+# PREMII file-only workspace
 
-English / Traditional Chinese bilingual research prototype based on the supplied English PREMII questionnaire and Chinese data-entry codebook. Records the worst observation per shift, including respiratory support, oxygen, apnea/bradycardia/desaturation, thermoregulation, feeding and weight. Item codes are **not a validated total score**. Translation and scoring need clinical review before clinical use.
+English / Traditional Chinese website for extracting documented PREMII observations from uploaded medical records. There is **no manual assessment form**. The workflow is upload → automatic extraction → inspect read-only evidence → export PDF/JSON/CSV.
 
-## Run
+## Run and build
 
-Requires Python 3.12+ to serve locally. Document readers are bundled in public/vendor and run entirely in the browser. To refresh them, use Node.js 24+, `npm ci --ignore-scripts` and `npm run build`. No database, API credentials or runtime external services are required.
+Python 3.12+ serves the site locally:
 
 ```bash
 cd /workspace/PREMII-
 python3 server.py --host 0.0.0.0 --port 3000
 ```
 
-Open the server in a suitable browser environment. `curl -fsS http://127.0.0.1:3000/` checks serving. `python3 -m unittest discover -s tests -v` runs the HTTP smoke tests. Port and bind address can be overridden with `--port` / `--host`.
+Document readers are bundled locally in public/vendor. Node.js 24+ refreshes them:
 
-## Languages
+```bash
+npm ci --ignore-scripts --no-audit --no-fund
+npm run build
+```
 
-Use the English / 繁體中文 selector in the header. English is the default; only the language preference is saved in local storage. Switching languages preserves form values and session records. Exports use stable field names, item codes and shift numbers independent of interface language.
+No database, API credentials or external inference service is required by the website. All documents are read in the visitor's browser.
 
-## Data and limits
+## File-only workflow
 
-Records exist in tab memory only; refresh/close clears them. Export JSON (full structured records) or CSV before leaving. No patient data is transmitted or persisted by the server. Use deidentified research identifiers. Uploaded example medical records are deliberately excluded from web assets and Git. There is no authentication, persistent storage or multi-user synchronization; these require a separate production implementation.
+- Select one or more TXT (UTF-8 or Big5), DOCX or text-based PDF files. Maximum 10 MB/file, 200 PDF pages, 2 million extracted characters/file and 3000 source observations/session. Scanned PDFs require OCR first. Blank PREMII questionnaire templates are not patient records.
+- Processing starts automatically. Explicit study/infant ID headings and standalone dated note headings separate source observations. Identifiers retain leading zeros. Unknown IDs, dates, shifts, start/end times and event counts remain null; no current date or shift schedule is invented. Source note timestamps are not shift boundaries.
+- Supported explicit item codes and recognizable current support/FiO2/weight/TPN/warming/caffeine observations are extracted with evidence. Text rules are conservative and can miss or misread clinical context, history and negation. Unrecognized information remains **Not found in source**, rather than normal, zero or No. Conflicting explicit codes remain unresolved. Nothing is clinically verified merely because extraction succeeded.
+- **View source results** selects a source note to inspect, without entering or completing data. Results and the source text are read-only. There is no Save assessment step; records are created automatically during import.
+- **Export selected PDF** opens the browser print dialog; choose Save as PDF, A4, with browser headers/footers disabled. An adapted seven-page report follows the source questionnaire sections and four-column layout. An explicit shift is put in its correct column; an unspecified shift is labeled as an observation, not assigned a shift number. One selected source note is exported, preventing unrelated patients/dates from being combined.
+- JSON/CSV export all observations, including source filenames, extraction evidence and per-field missingness. Complete original note text is excluded from exports, but evidence excerpts can contain health data. Save exports securely. Session data disappears on refresh/close. Only the interface language preference persists in local storage.
 
-Low-flow nasal cannula skips OA; no feeds skips FEED1. Supplemental details do not contribute to any score. First-assessment baseline weight and within-shift weight are separate. CSV values are quoted and protected against common spreadsheet formula prefixes. Overnight shifts may have an end time earlier than start time; date is the start date.
+These reports are source-note summaries. Without documented shift boundaries, they are **not validated per-shift PREMII measurements**. No validated total-score algorithm was supplied; the app does not calculate a total. Translation and extraction require clinical review. There are no accounts, persistent clinical storage, cross-visitor shared records or multi-user synchronization.
 
-Sources: supplied PREMII English questionnaire, © 2018 Shire Human Genetic Therapies, Inc.; PREMII is a trademark of Shire Human Genetic Therapies, Inc., a Takeda company. The original document states reproduction permission from Shire; this project does not assert independent distribution permission. The supplied data-entry document establishes item codes, not a validated aggregate scoring algorithm.
+## Checks
 
-## Import and PDF reports
+```bash
+npm run check
+python3 -m unittest discover -s tests -v
+```
 
-Upload your own TXT (UTF-8 or Big5), DOCX or text-based PDF, up to 10 MB (PDF: 200 pages). Files are parsed locally with pinned Mammoth and PDF.js browser libraries. No uploaded medical records are bundled or sent to a service. Scan-only PDFs need external OCR first.
+With Playwright and Chromium available, start the local server and run `node tests/test-browser.cjs`. Optional `PREMII_TEST_URL` selects a test server and `CHROMIUM_PATH` selects Chromium. The browser check generates synthetic TXT/DOCX/PDF patient documents and verifies automatic extraction, no manual-entry fields, unknown vs zero values, bilingual switching, mobile width and seven-page PDFs. It never publishes patient files.
 
-Select the relevant infant/shift passage, click **Use selected passage**, then **Suggest PREMII items**. Conservative rules propose supported explicit item codes and recognizable respiratory support, FiO2, weight, TPN, warming and caffeine statements. These rules are not an AI clinical interpreter: they can miss or misread negation, history, dates and context. Unknown values remain blank. Review the evidence, check proposals to apply, finish missing fields and confirm source verification before saving. Minimum weight is taken only within the chosen excerpt; it does not establish the measurement date or time. Supplemental low-flow source is not inferred.
+## Hosting
 
-Export PDF opens the browser print dialog; choose **Save as PDF**, A4, with browser headers/footers disabled. The adapted seven-page report follows the supplied questionnaire sections and four-shift columns. Reports are grouped by infant/date, with fixed Shift 1–4 columns and extra groups for repeated observations of the same shift, and use the selected language. This is a recreated report, not a pixel-identical or licensed reproduction of the original file. Source excerpts are not printed. JSON exports include the applied proposals and their evidence for audit; keep exports secure.
+Render uses render.yaml and builds the main branch, publishing only public/. The public service is https://premii-workspace.onrender.com . GitHub Pages is https://uyentlt.github.io/PREMII-/ ; after committing public/ changes, `bash scripts/deploy-pages.sh` publishes the committed static assets to gh-pages. Medical examples, original uploaded source documents and exported assessments must never be added to public/ or Git.
 
-`node tests/test-suggestions.cjs` verifies text proposal rules. The document readers' licenses are bundled in public/vendor.
+[Deploy on Render](https://render.com/deploy?repo=https://github.com/UyenTLT/PREMII-)
 
-## Free static hosting
+## Sources and attribution
 
-Publish the contents of `public/` to a static host such as GitHub Pages. The Python server is for local development only. GitHub Pages can publish a `gh-pages` branch at its root; configure this in repository Settings → Pages. Only app assets belong in that branch, never attachments, source medical records or exported assessments. Static hosting does not add accounts, persistent patient storage or synchronization.
-
-Published site: https://uyentlt.github.io/PREMII-/ . To update, commit website changes to main, then run `bash scripts/deploy-pages.sh`. The deployment script publishes only committed files from public/ and never uploads local medical records.
-
-## Render deployment
-
-[Deploy this site on Render](https://render.com/deploy?repo=https://github.com/UyenTLT/PREMII-)
-
-`render.yaml` defines a static site, using Render's free static hosting rather than a paid web-service instance. Sign in to Render, connect the GitHub repository if requested, review the static-site configuration, and choose Deploy. Render supplies the actual public HTTPS URL in its dashboard after deployment. No backend credentials or patient files are needed. Subsequent commits to main can automatically redeploy the site.
-
-The build runs the pinned `npm ci --ignore-scripts --no-audit --no-fund && npm run build`, then serves only public/. Document imports, proposals and PDF printing all operate in the visitor's own browser. Different visitors do not share records; there is no multi-user database. The original medical record examples are not part of the deployment.
+Based on the supplied English PREMature Infant Index Questionnaire and the item-code document “PREMII 建立資料用”. © 2018 Shire Human Genetic Therapies, Inc. PREMII is a trademark of Shire, a Takeda company. The original questionnaire states reproduction permission from Shire; this project does not assert independent distribution permission or clinical certification. The report is adapted, not a pixel-identical or licensed original form. Mammoth/PDF.js licenses are in public/vendor.

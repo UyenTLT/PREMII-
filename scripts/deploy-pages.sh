@@ -10,7 +10,9 @@ node --check public/app.js
 node --check public/documents.js
 node --check public/i18n.js
 node --check public/suggestions.js
+node --check public/extraction.js
 node tests/test-suggestions.cjs
+node tests/test-extraction.cjs
 git fetch origin refs/heads/gh-pages
 premii_pages_parent=$(git rev-parse FETCH_HEAD)
 premii_pages_tree=$(git rev-parse HEAD:public)
