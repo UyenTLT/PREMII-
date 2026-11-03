@@ -1,0 +1,11 @@
+const {extractSuggestions}=require('../public/suggestions.js');
+const assert=require('node:assert/strict');
+const parse=text=>Object.fromEntries(extractSuggestions(text).map(x=>[x.field,x.value]));
+assert.deepEqual(parse('No CPAP. No caffeine. History of intubation.'),{});
+assert.deepEqual(parse('Unrelated narrative, unknown feeding and support.'),{});
+assert.equal(parse('On nCPAP\nFiO2: 0.35').RES1,'4');assert.equal(parse('On nCPAP\nFiO2: 0.35').OA,'3');
+const low=parse('Nasal cannula 0.5 L/min\nFiO2: 30%');assert.equal(low.RES1,'2');assert.equal(low.RES3_1,'500');assert.equal(low.OA,undefined);
+assert.equal(parse('Weight: 1.23 kg').WEIGHT1,'1230');assert.equal(parse('體重：1230 公克').WEIGHT1,'1230');
+assert.equal(parse('TPN administered').FEED1,'6');assert.equal(parse('NG tube feeds').FEED1,undefined);
+assert.equal(parse('RES1: 99\nABD1_1: 2').RES1,undefined);assert.equal(parse('RES1: 99\nABD1_1: 2').ABD1_1,'2');
+console.log('PASS: proposal extraction, negation/history exclusions, unknowns, low-flow skip, weight conversion, explicit codes');
