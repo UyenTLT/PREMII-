@@ -40,3 +40,11 @@ Export PDF opens the browser print dialog; choose **Save as PDF**, A4, with brow
 Publish the contents of `public/` to a static host such as GitHub Pages. The Python server is for local development only. GitHub Pages can publish a `gh-pages` branch at its root; configure this in repository Settings → Pages. Only app assets belong in that branch, never attachments, source medical records or exported assessments. Static hosting does not add accounts, persistent patient storage or synchronization.
 
 Published site: https://uyentlt.github.io/PREMII-/ . To update, commit website changes to main, then run `bash scripts/deploy-pages.sh`. The deployment script publishes only committed files from public/ and never uploads local medical records.
+
+## Render deployment
+
+[Deploy this site on Render](https://render.com/deploy?repo=https://github.com/UyenTLT/PREMII-)
+
+`render.yaml` defines a static site, using Render's free static hosting rather than a paid web-service instance. Sign in to Render, connect the GitHub repository if requested, review the static-site configuration, and choose Deploy. Render supplies the actual public HTTPS URL in its dashboard after deployment. No backend credentials or patient files are needed. Subsequent commits to main can automatically redeploy the site.
+
+The build runs the pinned `npm ci --ignore-scripts --no-audit --no-fund && npm run build`, then serves only public/. Document imports, proposals and PDF printing all operate in the visitor's own browser. Different visitors do not share records; there is no multi-user database. The original medical record examples are not part of the deployment.
