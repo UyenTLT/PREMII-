@@ -17,7 +17,11 @@ const server = spawn(
     "127.0.0.1",
   ],
   {
-    env: { ...process.env, DATABASE_PATH: dir + "/browser.sqlite" },
+    env: {
+      ...process.env,
+      DATABASE_PATH: dir + "/browser.sqlite",
+      SETUP_TOKEN: "SyntheticSetupTokenForBrowserTests",
+    },
     stdio: ["ignore", "pipe", "pipe"],
   },
 );
@@ -74,6 +78,9 @@ try {
   await page
     .getByPlaceholder("Password", { exact: true })
     .fill("SyntheticBrowserTest123!");
+  await page
+    .getByPlaceholder("Setup token", { exact: true })
+    .fill("SyntheticSetupTokenForBrowserTests");
   await click("建立並登入");
   await page.locator(".shell").waitFor();
   checks.push("First-admin setup and login");
@@ -186,15 +193,13 @@ try {
   await modal.screenshot({ path: screenshotDir + "/assessment.png" });
   await modal.locator(".modalhead button").click();
   await page.getByRole("button", { name: /Source review/ }).click();
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "synthetic-ui.txt",
-      mimeType: "text/plain",
-      buffer: Buffer.from(
-        "【研究ID：DEMO-UI-001】\n2026-11-06 01:00 FiO2 30%\nNo nCPAP planned\n2026-11-06 04:00 BW 1230 g",
-      ),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "synthetic-ui.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from(
+      "【研究ID：DEMO-UI-001】\n2026-11-06 01:00 FiO2 30%\nNo nCPAP planned\n2026-11-06 04:00 BW 1230 g",
+    ),
+  });
   await click("確認匯入 / Confirm import");
   d = await waitRecord((d) => d.imports.length === 1);
   const imported = d.imports[0];

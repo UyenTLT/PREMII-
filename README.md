@@ -14,6 +14,12 @@ Open http://localhost:3000, create the first administrator with a password of at
 
 Database schema migration is in `migrations/001.sql`; startup applies the same idempotent schema. Back up the complete data directory using SQLite backup facilities or with server stopped; do not copy a live WAL database piecemeal. Use a persistent volume for `DATABASE_PATH`, HTTPS and hospital network controls. Do not run this SQLite edition on ephemeral/serverless storage. PostgreSQL migration and institutional identity integration are future deployment work.
 
+## Render deployment
+
+[Deploy this branch to Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FUyenTLT%2FPREMII-%2Ftree%2Fcodex%2Fcgmh-premii-tracker)
+
+The tracked `render.yaml` configures a Node.js 24 web service, `/api/health`, a paid 1 GB persistent disk, and a generated `SETUP_TOKEN`. Review Render's displayed charges before creating resources. See [Render setup and first-admin instructions](docs/RENDER_DEPLOY_VI.md). The existing static service requires a separate Node web service for this backend.
+
 ## Validation
 
 ```
@@ -21,6 +27,7 @@ npm test
 npm run typecheck
 npm run build
 npm run test:api
+npm run test:render
 # First run on your own machine:
 npx playwright install chromium
 npm run test:browser
@@ -47,7 +54,7 @@ See `docs/DOCUMENT_CROSSWALK.md` and `docs/DATA_DICTIONARY.md`. Total score is i
 - Regex extraction is deliberately conservative and limited to nCPAP/mechanical ventilation, explicit cannula flows, FiO2%, weight and feeding terms. It does not automatically populate forms, infer shift assignment, parse every respiratory device or count events. Humans review source and enter final observations. Context warnings are heuristic and are not clinical inference.
 - Review UI associates evidence decisions with infants/shifts and preserves source line/offset. Concurrent evidence review and shifts both use optimistic version checks. Import confirmation is hash-deduplicated; source review and form update are separate actions.
 - Trend charts show individual observations and missing values without interpolation. Horizontal point positions use actual timestamps; empty intervals are left blank. A dedicated gap timeline is not included.
-- No password reset, account deactivation, login rate limiting, external SSO, encrypted-at-rest database, automated retention or production backup scheduler. First-admin bootstrap must be performed on a trusted private network before broader access.
+- No password reset, account deactivation, login rate limiting, external SSO, encrypted-at-rest database, automated retention or production backup scheduler. Hosted first-admin bootstrap requires the SETUP_TOKEN configured in Render Environment.
 - PDF/Word supplementary mappings are documented, but raw dictionary names include `flow`/`caffeine` rather than every legacy Word alias. Export includes first weight, all measurements and missing state.
 
 ## Sources and attribution

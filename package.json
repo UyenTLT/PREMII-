@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "test:browser": "node tests/browser-smoke.mjs",
-    "test:api": "node tests/api-smoke.mjs"
+    "test:api": "node tests/api-smoke.mjs",
+    "test:render": "node tests/render-smoke.mjs"
   },
   "keywords": [],
   "author": "",

@@ -8,7 +8,12 @@ import {
   csv,
   RULE,
 } from "../../../lib/rules";
-import { randomBytes, randomUUID, createHash } from "node:crypto";
+import {
+  randomBytes,
+  randomUUID,
+  createHash,
+  timingSafeEqual,
+} from "node:crypto";
 export const runtime = "nodejs";
 const all = (table: string) =>
   db.prepare("SELECT * FROM " + table).all() as any[];
@@ -27,6 +32,27 @@ async function handle(req: NextRequest) {
         return NextResponse.json(
           { error: "Already configured" },
           { status: 409 },
+        );
+      const setupToken = process.env.SETUP_TOKEN;
+      if (process.env.RENDER === "true" && !setupToken)
+        return NextResponse.json(
+          {
+            error:
+              "Configure SETUP_TOKEN in Render Environment before first-admin setup",
+          },
+          { status: 503 },
+        );
+      if (
+        setupToken &&
+        (typeof b.setupToken !== "string" ||
+          !timingSafeEqual(
+            createHash("sha256").update(b.setupToken).digest(),
+            createHash("sha256").update(setupToken).digest(),
+          ))
+      )
+        return NextResponse.json(
+          { error: "Setup token required or invalid" },
+          { status: 403 },
         );
       if (!b.name || String(b.password).length < 12)
         throw Error("Name and password ≥12 characters required");
@@ -55,7 +81,8 @@ async function handle(req: NextRequest) {
       r.cookies.set("session", token, {
         httpOnly: true,
         sameSite: "strict",
-        secure: req.nextUrl.protocol === "https:",
+        secure:
+          process.env.RENDER === "true" || req.nextUrl.protocol === "https:",
         path: "/",
         maxAge: 28800,
       });
@@ -63,7 +90,12 @@ async function handle(req: NextRequest) {
     }
     if (path === "session") {
       const u = user(req);
-      return NextResponse.json({ user: u, setup: !all("users").length });
+      return NextResponse.json({
+        user: u,
+        setup: !all("users").length,
+        setupTokenRequired:
+          !!process.env.SETUP_TOKEN || process.env.RENDER === "true",
+      });
     }
     const u = user(req);
     if (!u)

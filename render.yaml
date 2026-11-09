@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: cgmh-premii-tracker
+    runtime: node
+    repo: https://github.com/UyenTLT/PREMII-
+    branch: codex/cgmh-premii-tracker
+    region: singapore
+    plan: 0.5c-512mb
+    numInstances: 1
+    autoDeployTrigger: "off"
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: premii-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: DATABASE_PATH
+        value: /var/data/premii.sqlite
+      - key: SETUP_TOKEN
+        generateValue: true

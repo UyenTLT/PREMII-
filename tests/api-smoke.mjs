@@ -16,7 +16,11 @@ const server = spawn(
     "127.0.0.1",
   ],
   {
-    env: { ...process.env, DATABASE_PATH: dir + "/test.sqlite" },
+    env: {
+      ...process.env,
+      DATABASE_PATH: dir + "/test.sqlite",
+      SETUP_TOKEN: "SyntheticSetupTokenForAPITests",
+    },
     stdio: ["ignore", "pipe", "pipe"],
   },
 );
@@ -56,7 +60,23 @@ try {
   }
   if (!connected) throw Error(output);
   await api("data", null, 401);
+  await api(
+    "setup",
+    { name: "Synthetic Admin", password: "SyntheticPassword123!" },
+    403,
+  );
+  await api(
+    "setup",
+    {
+      name: "Synthetic Admin",
+      password: "SyntheticPassword123!",
+      setupToken: "wrong",
+    },
+    403,
+  );
+  assert.equal((await api("health")).data.status, "ok");
   await api("setup", {
+    setupToken: "SyntheticSetupTokenForAPITests",
     name: "Synthetic Admin",
     password: "SyntheticPassword123!",
   });

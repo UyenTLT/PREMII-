@@ -17,6 +17,7 @@ export default function App() {
     [page, P] = useState("dashboard"),
     [session, U] = useState<any>(null),
     [setup, SSetup] = useState(false),
+    [setupTokenRequired, RequireSetupToken] = useState(false),
     [ready, R] = useState(false),
     [data, D] = useState<any>({
       infants: [],
@@ -78,6 +79,7 @@ export default function App() {
       .then(async (x) => {
         U(x.user);
         SSetup(x.setup);
+        RequireSetupToken(x.setupTokenRequired);
         if (x.user) await refresh();
       })
       .catch((e) => E(e.message))
@@ -263,6 +265,19 @@ export default function App() {
             value={auth.password}
             onChange={(e) => A({ ...auth, password: e.target.value })}
           />
+          {setup && setupTokenRequired && (
+            <label>
+              Render Environment → SETUP_TOKEN
+              <input
+                required
+                type="password"
+                autoComplete="off"
+                placeholder="Setup token"
+                value={auth.setupToken || ""}
+                onChange={(e) => A({ ...auth, setupToken: e.target.value })}
+              />
+            </label>
+          )}
           <button disabled={busy}>{setup ? "建立並登入" : "登入"}</button>
           {err && <p className="error">{err}</p>}
           <small>首次使用請設定至少 12 字元密碼。無預設帳密。</small>

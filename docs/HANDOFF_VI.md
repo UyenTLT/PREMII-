@@ -5,7 +5,7 @@
 ## Đã chạy thành công
 
 - 14 kiểm thử quy tắc nghiệp vụ.
-- 29 xác nhận API, kèm kiểm tra dữ liệu lưu trong backend, lịch sử và CSV tiếng Trung.
+- 32 xác nhận API, kèm kiểm tra dữ liệu lưu trong backend, lịch sử và CSV tiếng Trung.
 - TypeScript typecheck và Next.js production build.
 - API: tạo trẻ → tạo phiếu → lưu nháp → gửi duyệt → yêu cầu sửa → gửi lại → xác nhận → sửa đổi phiên bản → xuất CSV; nhập TXT giả lập, ngăn nhập trùng, rà soát bằng chứng.
 
@@ -39,3 +39,7 @@ Mở http://localhost:3000. Tạo quản trị viên với mật khẩu tối th
 - Mã nguồn mới thay thế bản file-only cũ ở thư mục gốc của nhánh codex/cgmh-premii-tracker trên GitHub; lịch sử bản cũ vẫn giữ trong Git. Trang GitHub Pages/Render static trước đây không chạy backend Next.js/SQLite của bản mới.
 
 Xem README.md, docs/DOCUMENT_CROSSWALK.md và docs/DATA_DICTIONARY.md để biết cấu trúc và phạm vi chính xác.
+
+## Render
+
+Đã có render.yaml và hướng dẫn chi tiết tại docs/RENDER_DEPLOY_VI.md. Cấu hình tạo Node Web Service mới với persistent disk, health check và bảo vệ tạo admin bằng SETUP_TOKEN.
