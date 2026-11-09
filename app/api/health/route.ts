@@ -4,7 +4,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET() {
   try {
-    db.prepare("SELECT 1 AS ready").get();
+    await db.prepare("SELECT 1 AS ready").get();
     return NextResponse.json(
       { status: "ok", service: "CGMH PREMII Tracker" },
       { headers: { "Cache-Control": "no-store" } },

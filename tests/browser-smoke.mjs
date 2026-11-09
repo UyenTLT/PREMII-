@@ -19,6 +19,7 @@ const server = spawn(
   {
     env: {
       ...process.env,
+      DATABASE_URL: process.env.TEST_DATABASE_URL || "",
       DATABASE_PATH: dir + "/browser.sqlite",
       SETUP_TOKEN: "SyntheticSetupTokenForBrowserTests",
     },

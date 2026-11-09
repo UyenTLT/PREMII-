@@ -5,11 +5,15 @@ import assert from "node:assert/strict";
 const dir = mkdtempSync(tmpdir() + "/premii-render-"),
   port = 3199,
   origin = `http://127.0.0.1:${port}`;
+if (!process.env.TEST_DATABASE_URL)
+  throw Error(
+    "Run with TEST_DATABASE_URL pointing to an isolated PostgreSQL test database",
+  );
 const setupToken = "SyntheticRenderBootstrapToken";
 let server,
   logs = "";
 const checks = [];
-async function start(databasePath) {
+async function start(databaseUrl) {
   server = spawn(
     process.execPath,
     ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1"],
@@ -19,7 +23,7 @@ async function start(databasePath) {
         PORT: String(port),
         RENDER: "true",
         NODE_ENV: "production",
-        DATABASE_PATH: databasePath,
+        DATABASE_URL: databaseUrl,
         SETUP_TOKEN: setupToken,
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -56,12 +60,12 @@ async function api(path, body, cookie = "") {
   });
 }
 try {
-  const path = dir + "/persistent/premii.sqlite";
+  const path = process.env.TEST_DATABASE_URL;
   await start(path);
   const health = await api("health");
   assert.equal(health.status, 200);
   assert.equal((await health.json()).status, "ok");
-  checks.push("Health check initializes runtime disk database and returns 200");
+  checks.push("Health check initializes PostgreSQL database and returns 200");
   const session = await (await api("session")).json();
   assert.equal(session.setupTokenRequired, true);
   assert.equal(
@@ -116,11 +120,12 @@ try {
     "RENDER-SYNTHETIC-001",
   );
   checks.push(
-    "Infant, administrator and session survive a full server restart using the same disk",
+    "Infant, administrator and session survive a full server restart using the same PostgreSQL database",
   );
   await stop();
-  writeFileSync(dir + "/blocked-file", "synthetic storage failure fixture");
-  await start(dir + "/blocked-file/premii.sqlite");
+  const unavailableUrl = new URL(path);
+  unavailableUrl.port = "1";
+  await start(unavailableUrl.toString());
   const unavailable = await api("health");
   assert.equal(unavailable.status, 503);
   assert.deepEqual(await unavailable.json(), { status: "unavailable" });

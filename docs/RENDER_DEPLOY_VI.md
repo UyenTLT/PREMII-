@@ -1,49 +1,54 @@
-# Chạy CGMH PREMII Tracker trên Render
+# Chạy miễn phí trên Render
 
-## Triển khai cấu hình đã chuẩn bị
+Cấu hình render.yaml mới chỉ khai báo **Web Service plan free + PostgreSQL plan free**, không có disk hoặc dịch vụ tính phí. Mã mới thay bản file-only cũ ở thư mục gốc repository.
 
-[Mở Deploy to Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FUyenTLT%2FPREMII-%2Ftree%2Fcodex%2Fcgmh-premii-tracker)
+## Giới hạn Free cần biết
 
-Đăng nhập Render, chọn workspace và xem danh sách tài nguyên trước khi bấm **Deploy Blueprint / Create resources**. Cấu hình nằm trong render.yaml trên nhánh codex/cgmh-premii-tracker, không cần merge PR để dùng liên kết này.
+Render Free PostgreSQL có dung lượng 1 GB và hết hạn sau **30 ngày**. Sau đó database không truy cập được; Render có giai đoạn gia hạn 14 ngày trước khi xóa nếu không nâng cấp. Bản miễn phí không có backup tự động. Web Free ngủ sau 15 phút không có truy cập và cần thời gian bật lại. Đây là bản demo; dữ liệu nghiên cứu cần lưu lâu dài phải có giải pháp lưu trữ khác.
 
-Cấu hình tạo một Web Service mới tên cgmh-premii-tracker, Node.js 24, Singapore, một instance với plan 0.5c-512mb và persistent disk 1 GB. Đây là cấu hình có phí; xem số tiền Render hiển thị trước khi xác nhận tạo. Auto-deploy tắt; các lần sau triển khai qua Manual Deploy.
+Nguồn: https://render.com/docs/free
 
-Bản premii-workspace cũ là Static Site. Render không chuyển runtime của Static Site sang Node; tạo Web Service mới là cần thiết. Không xóa dịch vụ cũ trước khi xác minh URL mới.
+## Áp dụng vào Blueprint đã tạo
+
+1. Mở Blueprint hiện có: https://dashboard.render.com/blueprint/exs-dbkpn0t9fdbs73c0rrp0
+2. Sync cấu hình mới từ GitHub. Repository là UyenTLT/PREMII-, branch main, file render.yaml. Nếu Blueprint còn theo dõi codex/cgmh-premii-tracker thì nhánh đó cũng đã nhận cấu hình Free; có thể chuyển theo dõi sang main.
+3. Xem trước tài nguyên: cgmh-premii-tracker-free là **Free Web Service**, cgmh-premii-db là **Free PostgreSQL**. Không xác nhận tài nguyên trả phí. Nếu workspace đã có một Free PostgreSQL, cần dùng database đó hoặc giải quyết giới hạn một Free database/workspace trước.
+4. Chờ cả database và web báo Live. Trong service cgmh-premii-tracker-free, sao chép URL do Render cấp (dạng https://…onrender.com). Đây mới là URL ứng dụng; link dashboard Blueprint không phải URL web.
+
+Nếu tạo mới từ đầu: [Deploy to Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FUyenTLT%2FPREMII-).
+
+Cấu hình tạo tên service mới để tránh tự ý xóa hoặc ghi đè disk/database của bản trước. **Render không tự xóa tài nguyên trả phí cũ khi thêm service Free**. Nếu trước đây đã tạo cgmh-premii-tracker kèm disk trả phí, kiểm tra/sao lưu dữ liệu trước rồi xóa tài nguyên cũ trong Render khi không còn dùng. Chỉ xóa mã nguồn cũ trong Git không dừng phí dịch vụ Render.
+
+## Thiết lập lần đầu
+
+Render tự liên kết DATABASE_URL từ PostgreSQL vào web service và tự sinh SETUP_TOKEN. Không gửi các giá trị này vào chat hoặc đưa lên Git.
+
+1. Xem SETUP_TOKEN tại service mới → Environment.
+2. Mở URL ứng dụng, nhập tên quản trị viên, mật khẩu mới tối thiểu 12 ký tự và Setup token. ID tài khoản đầu tiên là admin.
+3. Trong Study settings, tạo tài khoản entry/reviewer và tùy chọn seed giả lập nếu database trống. Ứng dụng không tự nạp bệnh án thật.
 
 ## Lệnh và biến môi trường
 
-| Mục               | Giá trị                                |
-| ----------------- | -------------------------------------- |
-| Branch            | codex/cgmh-premii-tracker              |
-| Build Command     | npm ci --include=dev && npm run build  |
-| Start Command     | npm start                              |
-| Node              | 24                                     |
-| Health Check Path | /api/health                            |
-| Disk mount        | /var/data                              |
-| DATABASE_PATH     | /var/data/premii.sqlite                |
-| SETUP_TOKEN       | Render tự sinh; không đưa vào Git/chat |
+| Mục             | Giá trị                                         |
+| --------------- | ----------------------------------------------- |
+| Runtime         | Node.js 24                                      |
+| Web plan        | free                                            |
+| Database plan   | free                                            |
+| Region          | Singapore cho cả web và database                |
+| Branch          | main                                            |
+| Build           | npm ci --include=dev && npm run build           |
+| Start           | npm start                                       |
+| Health          | /api/health                                     |
+| DATABASE_URL    | fromDatabase: cgmh-premii-db / connectionString |
+| SETUP_TOKEN     | generateValue: true                             |
+| Persistent disk | Không dùng                                      |
 
-Next.js sử dụng PORT do Render cung cấp và lắng nghe trên 0.0.0.0. Cơ sở dữ liệu chỉ được mở khi chạy, không lúc build. Schema được tạo idempotent ở lần truy cập runtime đầu tiên; không đưa SQLite migration vào pre-deploy vì disk không được gắn ở bước đó.
+Next.js dùng PORT do Render cung cấp và bind 0.0.0.0. Schema PostgreSQL được khởi tạo khi chạy, không trong bước build. Nếu Render thiếu DATABASE_URL, ứng dụng báo lỗi thay vì âm thầm lưu SQLite vào ổ tạm.
 
-## Lần đầu mở web
+## Kiểm tra và sao lưu
 
-1. Chờ Render báo **Live** và mở URL do Render trả về.
-2. Trong Render → service → Environment, xem SETUP_TOKEN đã được sinh.
-3. Trên màn hình ứng dụng, nhập tên quản trị viên, mật khẩu mới tối thiểu 12 ký tự và Setup token. Tài khoản đầu tiên có ID admin. Không có mật khẩu mặc định.
-4. Vào Study settings để tạo tài khoản entry/reviewer; tùy chọn tạo dữ liệu giả lập nếu cơ sở dữ liệu còn trống. Bệnh án thật không được tự động nạp.
+GET /api/health phải trả HTTP 200 / status=ok. Đăng nhập, tạo trẻ/phiếu giả lập và tải CSV. Restart web service để kiểm tra dữ liệu còn nguyên trong PostgreSQL. Health trả 503 khi database không truy cập được.
 
-Token chỉ dùng để bảo vệ tạo quản trị viên đầu tiên; khi đã có tài khoản thì bước setup đóng. Không gửi token trong chat. Cookie đăng nhập được đánh dấu Secure trên Render.
+Trước khi hết 30 ngày, xuất CSV nghiên cứu và dùng pg_dump trên máy tin cậy để sao lưu đầy đủ PostgreSQL, bao gồm bằng chứng, tài khoản và lịch sử. Lưu backup an toàn, không đưa lên repository công khai. Dữ liệu của SQLite bản trước không được tự động xóa hoặc tự động chuyển sang PostgreSQL; giữ backup trước khi bỏ dịch vụ cũ.
 
-## Xác minh sau deploy
-
-- GET /api/health phải trả HTTP 200 với status=ok; trả 503 nếu không truy cập được database.
-- Đăng nhập và tạo một trẻ giả lập, một phiếu nháp, rồi tải CSV.
-- Restart service; đăng nhập lại và kiểm tra trẻ/phiếu vẫn còn.
-- Đảm bảo disk gắn ở /var/data và DATABASE_PATH nằm dưới đường dẫn này. Không dùng ổ đĩa tạm cho dữ liệu cần giữ.
-- Sao lưu SQLite bằng công cụ backup của SQLite hoặc dừng service trước khi sao chép toàn bộ database/WAL. Disk snapshot không thay thế quy trình backup database nhất quán.
-
-## Kết quả kiểm tra trong môi trường phát triển
-
-14 kiểm thử quy tắc, 32 xác nhận API, 11 nhóm Chromium UI và production build đã qua. Build cũng qua khi DATABASE_PATH trỏ vào đường dẫn chưa được gắn. tests/render-smoke.mjs kiểm tra health, bootstrap token, Secure cookie, giữ dữ liệu sau restart và health 503 khi disk lỗi bằng dữ liệu giả lập. Đây là kiểm thử cục bộ tương đương cấu hình; chỉ Render báo Live mới xác nhận triển khai thật.
-
-Nguồn: [Next.js on Render](https://render.com/docs/deploy-nextjs-app), [Persistent disks](https://render.com/docs/disks), [Blueprint specification](https://render.com/docs/blueprint-spec), [Deploy button và chọn branch](https://render.com/docs/deploy-to-render).
+Render Free còn có giới hạn giờ chạy, bandwidth và build minutes. Xem usage/spend limit trên dashboard; không nâng cấp dịch vụ trả phí để xử lý giới hạn khi yêu cầu chỉ dùng Free.

@@ -15,20 +15,37 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 export const runtime = "nodejs";
-const all = (table: string) =>
-  db.prepare("SELECT * FROM " + table).all() as any[];
+const all = async (table: string) =>
+  (await db.prepare("SELECT * FROM " + table).all()) as any[];
 export async function GET(req: NextRequest) {
   return handle(req);
 }
+class RequestFailure extends Error {
+  constructor(public response: NextResponse) {
+    super("Request rolled back");
+  }
+}
 export async function POST(req: NextRequest) {
-  return handle(req);
+  try {
+    return await tx(async () => {
+      const response = await handle(req);
+      if (response.status >= 400) throw new RequestFailure(response);
+      return response;
+    });
+  } catch (error: any) {
+    if (error instanceof RequestFailure) return error.response;
+    return NextResponse.json(
+      { error: "Database unavailable; please retry" },
+      { status: 503 },
+    );
+  }
 }
 async function handle(req: NextRequest) {
   try {
     const path = req.nextUrl.pathname.slice(5);
     const b = req.method === "POST" ? await req.json() : {};
     if (path === "setup") {
-      if (all("users").length)
+      if ((await all("users")).length)
         return NextResponse.json(
           { error: "Already configured" },
           { status: 409 },
@@ -56,27 +73,24 @@ async function handle(req: NextRequest) {
         );
       if (!b.name || String(b.password).length < 12)
         throw Error("Name and password ≥12 characters required");
-      db.prepare("INSERT INTO users VALUES(?,?,?,?)").run(
-        "admin",
-        b.name,
-        "admin",
-        hash(b.password),
-      );
+      await db
+        .prepare("INSERT INTO users VALUES(?,?,?,?)")
+        .run("admin", b.name, "admin", hash(b.password));
       return NextResponse.json({ ok: true });
     }
     if (path === "login") {
-      const u = db.prepare("SELECT * FROM users WHERE id=?").get(b.id) as any;
+      const u = (await db
+        .prepare("SELECT * FROM users WHERE id=?")
+        .get(b.id)) as any;
       if (!u || !verify(b.password, u.password))
         return NextResponse.json(
           { error: "Invalid credentials" },
           { status: 401 },
         );
       const token = randomBytes(32).toString("hex");
-      db.prepare("INSERT INTO sessions VALUES(?,?,?)").run(
-        token,
-        u.id,
-        Date.now() + 28800000,
-      );
+      await db
+        .prepare("INSERT INTO sessions VALUES(?,?,?)")
+        .run(token, u.id, Date.now() + 28800000);
       const r = NextResponse.json({ ok: true });
       r.cookies.set("session", token, {
         httpOnly: true,
@@ -89,15 +103,15 @@ async function handle(req: NextRequest) {
       return r;
     }
     if (path === "session") {
-      const u = user(req);
+      const u = await user(req);
       return NextResponse.json({
         user: u,
-        setup: !all("users").length,
+        setup: !(await all("users")).length,
         setupTokenRequired:
           !!process.env.SETUP_TOKEN || process.env.RENDER === "true",
       });
     }
-    const u = user(req);
+    const u = await user(req);
     if (!u)
       return NextResponse.json({ error: "Please sign in" }, { status: 401 });
     if (
@@ -108,24 +122,26 @@ async function handle(req: NextRequest) {
       return NextResponse.json({ error: "Origin rejected" }, { status: 403 });
     if (path === "logout") {
       const r = NextResponse.json({ ok: true });
-      db.prepare("DELETE FROM sessions WHERE token=?").run(
-        req.cookies.get("session")?.value || "",
-      );
+      await db
+        .prepare("DELETE FROM sessions WHERE token=?")
+        .run(req.cookies.get("session")?.value || "");
       r.cookies.delete("session");
       return r;
     }
     if (path === "data")
       return NextResponse.json({
-        infants: all("infants").map((x) => JSON.parse(x.data)),
-        shifts: all("shifts").map((x) => JSON.parse(x.data)),
-        imports: all("imports").map((x) => ({
+        infants: (await all("infants")).map((x) => JSON.parse(x.data)),
+        shifts: (await all("shifts")).map((x) => JSON.parse(x.data)),
+        imports: (await all("imports")).map((x) => ({
           id: x.id,
           name: x.name,
           ...JSON.parse(x.data),
         })),
         users:
-          u.role === "admin" ? all("users").map(({ password, ...x }) => x) : [],
-        audit: all("audit"),
+          u.role === "admin"
+            ? (await all("users")).map(({ password, ...x }) => x)
+            : [],
+        audit: await all("audit"),
       });
     if (path === "users") {
       if (u.role !== "admin") throw Error("Admin required");
@@ -136,13 +152,10 @@ async function handle(req: NextRequest) {
         String(b.password).length < 12
       )
         throw Error("Valid account and password ≥12 required");
-      db.prepare("INSERT INTO users VALUES(?,?,?,?)").run(
-        b.id,
-        b.name,
-        b.role,
-        hash(b.password),
-      );
-      audit(b.id, u.id, null, { role: b.role });
+      await db
+        .prepare("INSERT INTO users VALUES(?,?,?,?)")
+        .run(b.id, b.name, b.role, hash(b.password));
+      await audit(b.id, u.id, null, { role: b.role });
       return NextResponse.json({ ok: true });
     }
     if (path === "infants") {
@@ -168,7 +181,7 @@ async function handle(req: NextRequest) {
       )
         throw Error("Invalid baseline");
       if (
-        all("infants").some((x) => {
+        (await all("infants")).some((x) => {
           const a = JSON.parse(x.data);
           return a.code === b.code && a.id !== b.id;
         })
@@ -181,24 +194,28 @@ async function handle(req: NextRequest) {
         ended: b.ended ? new Date(b.ended).toISOString() : null,
         id: b.id || randomUUID(),
       };
-      const oldInf = db
+      const oldInf = (await db
         .prepare("SELECT data FROM infants WHERE id=?")
-        .get(d.id) as any;
+        .get(d.id)) as any;
       return NextResponse.json(
-        tx(() => {
-          db.prepare(
-            "INSERT INTO infants VALUES(?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
-          ).run(d.id, JSON.stringify(d));
-          audit(d.id, u.id, oldInf ? JSON.parse(oldInf.data) : null, d);
+        await tx(async () => {
+          await db
+            .prepare(
+              "INSERT INTO infants VALUES(?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+            )
+            .run(d.id, JSON.stringify(d));
+          await audit(d.id, u.id, oldInf ? JSON.parse(oldInf.data) : null, d);
           return d;
         }),
       );
     }
     if (path === "shifts")
       return NextResponse.json(
-        tx(() => {
+        await tx(async () => {
           const old = b.id
-            ? (db.prepare("SELECT * FROM shifts WHERE id=?").get(b.id) as any)
+            ? ((await db
+                .prepare("SELECT * FROM shifts WHERE id=?")
+                .get(b.id)) as any)
             : null;
           const before = old ? JSON.parse(old.data) : null;
           if (old && old.version !== b.version)
@@ -239,11 +256,15 @@ async function handle(req: NextRequest) {
             updatedAt: new Date().toISOString(),
           });
           delete d.action;
-          if (!db.prepare("SELECT id FROM infants WHERE id=?").get(d.infantId))
+          if (
+            !(await db
+              .prepare("SELECT id FROM infants WHERE id=?")
+              .get(d.infantId))
+          )
             throw Error("Infant missing");
           const errors = validate(d, ["confirm", "submit"].includes(action));
           if (
-            !all("shifts").some(
+            !(await all("shifts")).some(
               (x) => x.infantId === d.infantId && x.id !== d.id,
             )
           ) {
@@ -255,7 +276,7 @@ async function handle(req: NextRequest) {
           }
           if (errors.length) throw Error(errors.join("; "));
           if (
-            all("shifts").some(
+            (await all("shifts")).some(
               (x) =>
                 x.id !== d.id &&
                 x.infantId === d.infantId &&
@@ -263,10 +284,12 @@ async function handle(req: NextRequest) {
             )
           )
             throw Error("Shift overlaps existing shift");
-          db.prepare(
-            "INSERT INTO shifts VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,data=excluded.data",
-          ).run(d.id, d.infantId, d.version, JSON.stringify(d));
-          audit(d.id, u.id, before, d);
+          await db
+            .prepare(
+              "INSERT INTO shifts VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,data=excluded.data",
+            )
+            .run(d.id, d.infantId, d.version, JSON.stringify(d));
+          await audit(d.id, u.id, before, d);
           return d;
         }),
       );
@@ -277,7 +300,7 @@ async function handle(req: NextRequest) {
       const h = createHash("sha256")
         .update(b.text.replaceAll("\r\n", "\n"))
         .digest("hex");
-      if (db.prepare("SELECT id FROM imports WHERE hash=?").get(h))
+      if (await db.prepare("SELECT id FROM imports WHERE hash=?").get(h))
         throw Error("Duplicate file");
       const id = randomUUID();
       const d = {
@@ -287,23 +310,20 @@ async function handle(req: NextRequest) {
         assignments: b.assignments || {},
         createdAt: new Date().toISOString(),
       };
-      db.prepare("INSERT INTO imports VALUES(?,?,?,?)").run(
-        id,
-        h,
-        b.name,
-        JSON.stringify(d),
-      );
-      audit(id, u.id, null, { name: b.name });
+      await db
+        .prepare("INSERT INTO imports VALUES(?,?,?,?)")
+        .run(id, h, b.name, JSON.stringify(d));
+      await audit(id, u.id, null, { name: b.name });
       return NextResponse.json({ id, ...d });
     }
     if (path === "evidence")
       return NextResponse.json(
-        tx(() => {
+        await tx(async () => {
           if (!["reviewer", "admin"].includes(u.role))
             throw Error("Reviewer required");
-          const x = db
+          const x = (await db
             .prepare("SELECT * FROM imports WHERE id=?")
-            .get(b.importId) as any;
+            .get(b.importId)) as any;
           if (!x) throw Error("Import missing");
           const d = JSON.parse(x.data);
           if (b.expectedVersion !== d.version)
@@ -318,9 +338,9 @@ async function handle(req: NextRequest) {
           )
             throw Error("Invalid decision");
           if (["accepted", "edited"].includes(b.status)) {
-            const sh = db
+            const sh = (await db
               .prepare("SELECT * FROM shifts WHERE id=?")
-              .get(b.shiftId) as any;
+              .get(b.shiftId)) as any;
             const shift = sh ? JSON.parse(sh.data) : null;
             if (
               !shift ||
@@ -343,11 +363,10 @@ async function handle(req: NextRequest) {
           s.noteTime = b.noteTime || s.noteTime;
           s.value = b.value ?? s.value;
           s.infantId = b.infantId || null;
-          db.prepare("UPDATE imports SET data=? WHERE id=?").run(
-            JSON.stringify(d),
-            x.id,
-          );
-          audit(x.id, u.id, before.suggestions[b.index], s);
+          await db
+            .prepare("UPDATE imports SET data=? WHERE id=?")
+            .run(JSON.stringify(d), x.id);
+          await audit(x.id, u.id, before.suggestions[b.index], s);
           return { ok: true };
         }),
       );
@@ -367,7 +386,7 @@ async function handle(req: NextRequest) {
           "missing_state",
         ],
       ];
-      for (const x of all("shifts")) {
+      for (const x of await all("shifts")) {
         const d = normalize(JSON.parse(x.data));
         d.RES3_1 = d.flowL == null ? null : d.flowL * 1000;
         d.ABD4 = d.caffeine === "yes" ? 1 : d.caffeine === "no" ? 0 : null;
@@ -381,9 +400,9 @@ async function handle(req: NextRequest) {
           continue;
         const inf = JSON.parse(
           (
-            db
+            (await db
               .prepare("SELECT data FROM infants WHERE id=?")
-              .get(d.infantId) as any
+              .get(d.infantId)) as any
           ).data,
         );
         for (const k of [
@@ -473,9 +492,9 @@ async function handle(req: NextRequest) {
       });
     }
     if (path === "seed") {
-      if (u.role !== "admin" || all("infants").length)
+      if (u.role !== "admin" || (await all("infants")).length)
         throw Error("Seed requires empty database and admin");
-      tx(() => {
+      await tx(async () => {
         for (let i = 1; i <= 8; i++) {
           const id = "demo-" + i;
           const d = {
@@ -488,10 +507,9 @@ async function handle(req: NextRequest) {
             birthWeight: 850 + i * 90,
             status: "active",
           };
-          db.prepare("INSERT INTO infants VALUES(?,?)").run(
-            id,
-            JSON.stringify(d),
-          );
+          await db
+            .prepare("INSERT INTO infants VALUES(?,?)")
+            .run(id, JSON.stringify(d));
           for (let j = 0; j < 3; j++) {
             let s = normalize({
               id: id + "-" + j,
@@ -530,12 +548,9 @@ async function handle(req: NextRequest) {
               administered: "unknown",
               enteredBy: u.id,
             });
-            db.prepare("INSERT INTO shifts VALUES(?,?,?,?)").run(
-              s.id,
-              id,
-              1,
-              JSON.stringify(s),
-            );
+            await db
+              .prepare("INSERT INTO shifts VALUES(?,?,?,?)")
+              .run(s.id, id, 1, JSON.stringify(s));
           }
         }
       });
@@ -552,12 +567,12 @@ async function handle(req: NextRequest) {
 function oaSeed(v: number) {
   return v <= 30 ? 2 : 3;
 }
-function user(req: NextRequest): any {
-  const s = db
+async function user(req: NextRequest): Promise<any> {
+  const s = (await db
     .prepare("SELECT userId FROM sessions WHERE token=? AND expires>?")
-    .get(req.cookies.get("session")?.value || "", Date.now()) as any;
+    .get(req.cookies.get("session")?.value || "", Date.now())) as any;
   if (!s) return null;
-  const u = db
+  const u = await db
     .prepare("SELECT id,name,role FROM users WHERE id=?")
     .get(s.userId);
   return u || null;

@@ -18,6 +18,7 @@ const server = spawn(
   {
     env: {
       ...process.env,
+      DATABASE_URL: process.env.TEST_DATABASE_URL || "",
       DATABASE_PATH: dir + "/test.sqlite",
       SETUP_TOKEN: "SyntheticSetupTokenForAPITests",
     },
@@ -143,6 +144,23 @@ try {
   };
   let s = (await api("shifts", { ...base, action: "draft" }, 200, entry)).data;
   assert.equal(s.score, null);
+  const concurrent = await Promise.all(
+    ["A", "B"].map(async (note) => {
+      const response = await fetch("http://127.0.0.1:" + port + "/api/shifts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", cookie: entry },
+        body: JSON.stringify({
+          ...s,
+          action: "draft",
+          notes: "Concurrent " + note,
+        }),
+      });
+      return { status: response.status, data: await response.json() };
+    }),
+  );
+  assert.deepEqual(concurrent.map((r) => r.status).sort(), [200, 409]);
+  s = concurrent.find((r) => r.status === 200).data;
+  checks += 2;
   await api("shifts", { ...base, action: "draft" }, 400, entry);
   await api("shifts", { ...s, action: "confirm" }, 400, entry);
   await api(
