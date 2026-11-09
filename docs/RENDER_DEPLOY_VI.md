@@ -4,15 +4,15 @@
 
 `cannot have more than one active free tier database` nghĩa là workspace đã có một PostgreSQL Free. Bước Create database thất bại khiến bước tạo web bị canceled. Đây là giới hạn tài nguyên, không phải lỗi Next.js build.
 
-render.yaml hiện **không còn mục databases** và không tạo database thứ hai. Chỉ có Node Web Service plan free. Không xóa database đang có để xử lý lỗi này.
+render.yaml không khai báo tạo database mới. Chỉ có Node Web Service plan free, tham chiếu DATABASE_URL trực tiếp từ database hiện có cgmh-rehab-test-db trong My Workspace. Render tự truyền connection string nội bộ; credential không xuất hiện trong Git/chat. Database và web đều ở Singapore. Không xóa database hiện có để xử lý lỗi này.
 
 ## Áp dụng cấu hình mới
 
 1. Mở Blueprint: https://dashboard.render.com/blueprint/exs-dbkpn0t9fdbs73c0rrp0 và Sync từ main của UyenTLT/PREMII-.
 2. Trước khi tạo web, xác định PostgreSQL Free đang hoạt động, ngày hết hạn và region. Web mặc định Singapore; đặt cùng region với database để dùng Internal Database URL.
-3. Copy **Internal Database URL** của database hiện có vào biến **DATABASE_URL** của service cgmh-premii-tracker-free trên Render. Không đưa giá trị này vào chat/Git. Nếu web và database khác region, dùng External Database URL với TLS theo hướng dẫn Render, hoặc tạo web trong đúng region.
+3. Kiểm tra DATABASE_URL dùng fromDatabase / cgmh-rehab-test-db / connectionString. Render giải quyết tham chiếu tới database có sẵn trong workspace mà không tạo hoặc quản lý lại database đó.
 4. DATABASE_SCHEMA=premii đã có trong Blueprint. Bảng PREMII được tạo trong schema riêng, không dùng các bảng public.users của ứng dụng khác. Không tự di chuyển hoặc xóa dữ liệu PREMII từng lưu trong public.
-5. Lúc tạo Blueprint lần đầu, Render hỏi DATABASE_URL vì sync:false. Nếu cập nhật Blueprint hiện có, thêm giá trị tại service → Environment vì Render không hỏi lại sync:false khi Sync.
+5. Không cần dán DATABASE_URL thủ công khi dùng Blueprint hiện tại. Nếu triển khai vào workspace khác, đổi fromDatabase.name sang đúng database có sẵn hoặc tự cấu hình secret trên Render.
 6. Deploy web, chờ Live và kiểm tra /api/health trả status=ok. Chỉ chạy retry sau khi DATABASE_URL đã được cấu hình.
 
 Nếu dùng tích hợp Render trong ChatGPT, cần hoàn tất Connect và cấp quyền tài khoản để trợ lý đọc danh sách database, đặt biến môi trường và chạy deploy. Gửi link dashboard không tự cấp quyền truy cập.
@@ -32,7 +32,7 @@ Render tự sinh SETUP_TOKEN cho web. Xem token ở service → Environment, nh�
 | Build                 | npm ci --include=dev && npm run build       |
 | Start                 | npm start                                   |
 | Health                | /api/health                                 |
-| DATABASE_URL          | Secret nhập từ database hiện có trên Render |
+| DATABASE_URL | fromDatabase: cgmh-rehab-test-db / connectionString |
 | DATABASE_SCHEMA       | premii                                      |
 | SETUP_TOKEN           | generateValue: true                         |
 | Disk trả phí          | Không dùng                                  |
@@ -41,7 +41,7 @@ Bản cũ dạng Static Site có Publish Directory ./public không chạy đư�
 
 ## Giới hạn Free và bảo toàn dữ liệu
 
-Một workspace chỉ có một Free PostgreSQL, dung lượng 1 GB. Database Free hết hạn 30 ngày sau ngày tạo ban đầu; dùng lại database không đặt lại thời hạn đó. Sau hết hạn, Render có 14 ngày gia hạn trước khi xóa nếu không nâng cấp. Không có backup tự động cho Free. Web Free ngủ sau 15 phút không dùng.
+Database đang dùng là cgmh-rehab-test-db, id dpg-dbbgvklg1s2s738v3uvg-a, Singapore; Render báo hết hạn **19/11/2026 lúc 14:53 Asia/Taipei**. Một workspace chỉ có một Free PostgreSQL, dung lượng 1 GB. Database Free hết hạn 30 ngày sau ngày tạo ban đầu; dùng lại database không đặt lại thời hạn đó. Sau hết hạn, Render có 14 ngày gia hạn trước khi xóa nếu không nâng cấp. Không có backup tự động cho Free. Web Free ngủ sau 15 phút không dùng.
 
 Ứng dụng chỉ khởi tạo bảng trong schema được cấu hình. Dữ liệu PostgreSQL/SQLite cũ không được tự động chuyển đổi hay xóa. Sao lưu đầy đủ PostgreSQL bằng pg_dump trên máy tin cậy và xuất CSV trước khi hết hạn. Không đưa bản sao lưu bệnh án lên GitHub.
 

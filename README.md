@@ -18,7 +18,7 @@ With DATABASE_URL set, the app uses PostgreSQL and the migration in `migrations/
 
 [Deploy this branch to Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FUyenTLT%2FPREMII-)
 
-The tracked `render.yaml` configures a **Free Node web service**, `/api/health`, and a generated `SETUP_TOKEN`. It reuses an existing PostgreSQL database through a secret DATABASE_URL; it creates neither a second database nor a paid disk. DATABASE_SCHEMA=premii isolates application tables when sharing a database. Free Render Postgres expires after 30 days and free web services sleep after 15 idle minutes. This configuration is for demos, not long-term clinical storage. See [Render Free setup](docs/RENDER_DEPLOY_VI.md) and [official free-plan limits](https://render.com/docs/free). Review existing services separately: adding a free service does not delete an old paid service or its disk.
+The tracked `render.yaml` configures a **Free Node web service**, `/api/health`, and a generated `SETUP_TOKEN`. It references the existing cgmh-rehab-test-db in the confirmed Render workspace through fromDatabase (without exposing its connection string); it creates neither a second database nor a paid disk. DATABASE_SCHEMA=premii isolates application tables when sharing a database. Free Render Postgres expires after 30 days and free web services sleep after 15 idle minutes. This configuration is for demos, not long-term clinical storage. See [Render Free setup](docs/RENDER_DEPLOY_VI.md) and [official free-plan limits](https://render.com/docs/free). Review existing services separately: adding a free service does not delete an old paid service or its disk.
 
 ## Validation
 

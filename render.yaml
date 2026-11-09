@@ -18,7 +18,9 @@ services:
       - key: NEXT_TELEMETRY_DISABLED
         value: "1"
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: cgmh-rehab-test-db
+          property: connectionString
       - key: DATABASE_SCHEMA
         value: premii
       - key: SETUP_TOKEN
