@@ -75,17 +75,17 @@ try {
     );
   }
   await page.goto(url);
-  await page.getByPlaceholder("姓名 / Name").fill("Synthetic QA");
+  await page.locator(".language").click();
+  await page.getByPlaceholder("Name").fill("Synthetic QA");
   await page
     .getByPlaceholder("Password", { exact: true })
     .fill("SyntheticBrowserTest123!");
   await page
     .getByPlaceholder("Setup token", { exact: true })
     .fill("SyntheticSetupTokenForBrowserTests");
-  await click("建立並登入");
+  await click("Create and sign in");
   await page.locator(".shell").waitFor();
   checks.push("First-admin setup and login");
-  await click("◎ English");
   await page.getByRole("button", { name: /Study settings/ }).click();
   await page.getByRole("button", { name: /Seed synthetic data/ }).click();
   await waitRecord((d) => d.infants.length === 8);
@@ -93,14 +93,12 @@ try {
   await click("＋ Add infant");
   let modal = page.locator(".modal");
   await modal.getByLabel("Study ID", { exact: true }).fill("DEMO-UI-001");
+  await modal.getByLabel("Birth", { exact: true }).fill("2026-10-01T08:00");
   await modal
-    .getByLabel("出生時間 / Birth", { exact: true })
-    .fill("2026-10-01T08:00");
-  await modal
-    .getByLabel("入院時間 / Admission", { exact: true })
+    .getByLabel("Admission time", { exact: true })
     .fill("2026-10-01T09:00");
-  await modal.getByLabel("GA weeks", { exact: true }).fill("28");
-  await modal.getByLabel("GA days", { exact: true }).fill("3");
+  await modal.getByLabel("Gestational age (weeks)", { exact: true }).fill("28");
+  await modal.getByLabel("Gestational age (days)", { exact: true }).fill("3");
   await modal.getByLabel("Birth weight (g)", { exact: true }).fill("1100");
   await modal.getByRole("button", { name: "Save draft", exact: true }).click();
   let d = await waitRecord((d) =>
@@ -123,11 +121,11 @@ try {
   await modal.getByLabel("Bradycardia threshold", { exact: true }).fill("80");
   await modal.getByLabel("Desaturation threshold", { exact: true }).fill("85");
   for (const [key, label] of [
-    ["ABD1_1", "Apnea + intervention"],
+    ["ABD1_1", "Apnea with intervention"],
     ["ABD1_2", "Apnea without intervention"],
-    ["ABD2_1", "Bradycardia + intervention"],
+    ["ABD2_1", "Bradycardia with intervention"],
     ["ABD2_2", "Bradycardia without intervention"],
-    ["ABD3_1", "Desaturation + intervention"],
+    ["ABD3_1", "Desaturation with intervention"],
     ["ABD3_2", "Desaturation without intervention"],
   ])
     await modal.getByLabel(key + " · " + label, { exact: true }).fill("0");
@@ -140,7 +138,7 @@ try {
   await modal.getByLabel("THG1", { exact: true }).selectOption("3");
   await modal.getByLabel("THG2 · Device", { exact: true }).selectOption("2");
   await modal
-    .getByLabel("Any feeds incl. amino acid / lipid IV nutrition?", {
+    .getByLabel("Any feeds, including amino acid / lipid IV nutrition?", {
       exact: true,
     })
     .selectOption("no");
@@ -154,20 +152,20 @@ try {
     .getByLabel("Weighed during shift?", { exact: true })
     .selectOption("yes");
   await modal
-    .getByRole("button", { name: "＋ Measurement", exact: true })
+    .getByRole("button", { name: "＋ Add measurement", exact: true })
     .click();
   await modal
-    .getByLabel("Weight time", { exact: true })
+    .getByLabel("Weight measurement time", { exact: true })
     .fill("2026-11-06T01:00");
-  await modal.getByLabel("Weight grams", { exact: true }).fill("1250");
+  await modal.getByLabel("Weight (g)", { exact: true }).fill("1250");
   await modal
-    .getByRole("button", { name: "＋ Measurement", exact: true })
+    .getByRole("button", { name: "＋ Add measurement", exact: true })
     .click();
   await modal
-    .getByLabel("Weight time", { exact: true })
+    .getByLabel("Weight measurement time", { exact: true })
     .nth(1)
     .fill("2026-11-06T04:00");
-  await modal.getByLabel("Weight grams", { exact: true }).nth(1).fill("1230");
+  await modal.getByLabel("Weight (g)", { exact: true }).nth(1).fill("1230");
   await modal.getByRole("button", { name: "Save draft", exact: true }).click();
   d = await waitRecord((d) => d.shifts.some((s) => s.infantId === infant.id));
   let shift = d.shifts.find((s) => s.infantId === infant.id);
@@ -192,7 +190,7 @@ try {
   assert.equal(shift.flowL, 1);
   checks.push("Low-flow branch hides OA and clears it in backend");
   await modal.screenshot({ path: screenshotDir + "/assessment.png" });
-  await modal.locator(".modalhead button").click();
+  await modal.getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("button", { name: /Source review/ }).click();
   await page.locator("input[type=file]").setInputFiles({
     name: "synthetic-ui.txt",
@@ -201,7 +199,7 @@ try {
       "【研究ID：DEMO-UI-001】\n2026-11-06 01:00 FiO2 30%\nNo nCPAP planned\n2026-11-06 04:00 BW 1230 g",
     ),
   });
-  await click("確認匯入 / Confirm import");
+  await click("Confirm import");
   d = await waitRecord((d) => d.imports.length === 1);
   const imported = d.imports[0];
   assert.equal(
@@ -210,15 +208,15 @@ try {
   );
   let suggestion = page
     .locator(".suggestion")
-    .filter({ has: page.locator("b", { hasText: "weight →" }) });
+    .filter({ has: page.locator("b", { hasText: "Weight →" }) });
   await suggestion
-    .getByLabel("個案 / Infant", { exact: true })
+    .getByLabel("Infant", { exact: true })
     .selectOption(infant.id);
   await suggestion
-    .getByLabel("評估 / Shift", { exact: true })
+    .getByLabel("Assessment", { exact: true })
     .selectOption(shift.id);
   await suggestion
-    .getByLabel("事件時間", { exact: true })
+    .getByLabel("Event time", { exact: true })
     .fill("2026-11-06T04:00");
   await suggestion.getByRole("button", { name: "Accept", exact: true }).click();
   d = await waitRecord((d) =>
@@ -234,7 +232,7 @@ try {
     fullPage: true,
   });
   await click("＋ New assessment");
-  await page.locator(".modalhead button").click();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("button", { name: /PREMII assessments/ }).click();
   await page.getByPlaceholder("Search study ID…").fill("DEMO-UI-001");
   await page
@@ -257,13 +255,13 @@ try {
     (d) => d.shifts.find((s) => s.id === shift.id)?.status === "confirmed",
   );
   checks.push("Submit and confirm assessment through UI with linked source");
-  await modal.locator(".modalhead button").click();
+  await modal.getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("button", { name: /Trends/, exact: false }).click();
   await page.locator(".toolbar select").first().selectOption(infant.id);
   assert.ok((await page.locator(".chart .bar").count()) > 0);
   await page.locator(".chart .bar").first().click();
   await page.locator(".modal.wide").waitFor();
-  await page.locator(".modalhead button").click();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
   checks.push("Infant-specific trends and point-to-form navigation");
   await page.getByRole("button", { name: /Data export/ }).click();
   await page.locator(".toolbar select").first().selectOption(infant.id);

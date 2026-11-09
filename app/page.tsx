@@ -1,14 +1,8 @@
 "use client";
+
 import { useState, useEffect } from "react";
-import { strings, options } from "../lib/i18n";
+import { options, translate, localizeError, formatDateTime } from "../lib/i18n";
 import { oa, validate, normalize } from "../lib/rules";
-const fmt = (s: string) =>
-  s
-    ? new Date(s).toLocaleString("zh-TW", {
-        timeZone: "Asia/Taipei",
-        hour12: false,
-      })
-    : "—";
 const local = (s: string) =>
   s ? new Date(Date.parse(s) + 28800000).toISOString().slice(0, 16) : "";
 const utc = (s: string) => (s ? new Date(s + "+08:00").toISOString() : "");
@@ -40,8 +34,38 @@ export default function App() {
     [evidenceShift, ES] = useState(""),
     [from, FR] = useState(""),
     [to, TO] = useState(""),
-    [auth, A] = useState<any>({ id: "admin", name: "", password: "" });
-  const t = (k: string) => (strings[lang] as any)[k] || k;
+    [auth, A] = useState<any>({
+      id: "admin",
+      name: "",
+      password: "",
+    });
+  const t = (k: string) => translate(lang, k);
+  const fmt = (s: string) => formatDateTime(s, lang);
+  const [localeReady, setLocaleReady] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("premii.language");
+      if (saved === "en" || saved === "zh") L(saved);
+    } catch {}
+    setLocaleReady(true);
+  }, []);
+  useEffect(() => {
+    if (!localeReady) return;
+    document.documentElement.lang = lang === "en" ? "en" : "zh-Hant";
+    try {
+      localStorage.setItem("premii.language", lang);
+    } catch {}
+  }, [lang, localeReady]);
+  const languageSwitch = (
+    <button
+      type="button"
+      className="language"
+      aria-label={t("language")}
+      onClick={() => L(lang === "zh" ? "en" : "zh")}
+    >
+      ◎ {lang === "zh" ? "English" : "繁體中文"}
+    </button>
+  );
   const op = options[lang];
   async function api(path: string, b?: any) {
     const r = await fetch(
@@ -49,7 +73,9 @@ export default function App() {
       b
         ? {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+            },
             body: JSON.stringify(b),
           }
         : {},
@@ -67,7 +93,7 @@ export default function App() {
     M("");
     try {
       await fn();
-      M(t("saved"));
+      M("saved");
     } catch (e: any) {
       E(e.message);
     } finally {
@@ -107,7 +133,10 @@ export default function App() {
           .includes(query.toLowerCase())),
   );
   function set(k: string, v: any) {
-    F((s: any) => ({ ...s, [k]: v }));
+    F((s: any) => ({
+      ...s,
+      [k]: v,
+    }));
   }
   function updateSuggestion(importId: string, index: number, patch: any) {
     D((previous: any) => ({
@@ -119,7 +148,12 @@ export default function App() {
               ...item,
               suggestions: item.suggestions.map(
                 (suggestion: any, position: number) =>
-                  position === index ? { ...suggestion, ...patch } : suggestion,
+                  position === index
+                    ? {
+                        ...suggestion,
+                        ...patch,
+                      }
+                    : suggestion,
               ),
             },
       ),
@@ -141,7 +175,7 @@ export default function App() {
         />
         {form[k] == null && (
           <select
-            aria-label={label + " missing state"}
+            aria-label={label + t("missingStateSuffix")}
             value={form.missingStates?.[k] || "unknown"}
             onChange={(e) =>
               set("missingStates", {
@@ -150,9 +184,9 @@ export default function App() {
               })
             }
           >
-            <option value="unknown">未知 / Unknown</option>
-            <option value="not_recorded">未記錄 / Not recorded</option>
-            <option value="not_measured">未測量 / Not measured</option>
+            <option value="unknown">{t("unknown")}</option>
+            <option value="not_recorded">{t("notRecorded")}</option>
+            <option value="not_measured">{t("notMeasured")}</option>
           </select>
         )}
       </label>
@@ -191,7 +225,17 @@ export default function App() {
     ["no", t("no")],
     ["unknown", t("unknown")],
   ];
-  const badge = (s: string) => <span className={"badge " + s}>{t(s)}</span>;
+  const badge = (s: string) => (
+    <span className={"badge " + s}>
+      {t(
+        s === "changes"
+          ? "changesStatus"
+          : ["accepted", "edited", "rejected"].includes(s)
+            ? s + "Status"
+            : s,
+      )}
+    </span>
+  );
   function openShift(s: any) {
     F(structuredClone(s));
     E("");
@@ -213,18 +257,23 @@ export default function App() {
   }
   async function save(action: string) {
     await act(async () => {
-      const s = await api("shifts", { ...form, action });
+      const s = await api("shifts", {
+        ...form,
+        action,
+      });
       F(s);
       await refresh();
     });
   }
-  if (!ready) return <div className="loading">{t("loading")}</div>;
+  if (!ready || !localeReady)
+    return <div className="loading">{t("loading")}</div>;
   if (!session)
     return (
       <main className="login">
+        {languageSwitch}
         <div className="brandmark">＋</div>
         <h1>CGMH PREMII Tracker</h1>
-        <p>NICU Research Workspace</p>
+        <p>{t("loginSubtitle")}</p>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -239,48 +288,68 @@ export default function App() {
             });
           }}
         >
-          <h2>
-            {setup ? "建立管理員 / Create administrator" : "登入 / Sign in"}
-          </h2>
+          <h2>{setup ? t("createAdmin") : t("signIn")}</h2>
           {setup && (
             <input
               required
-              placeholder="姓名 / Name"
+              placeholder={t("name")}
               value={auth.name}
-              onChange={(e) => A({ ...auth, name: e.target.value })}
+              onChange={(e) =>
+                A({
+                  ...auth,
+                  name: e.target.value,
+                })
+              }
             />
           )}
           <input
             required
             readOnly={setup}
-            placeholder="Account ID"
+            placeholder={t("accountId")}
             value={auth.id}
-            onChange={(e) => A({ ...auth, id: e.target.value })}
+            onChange={(e) =>
+              A({
+                ...auth,
+                id: e.target.value,
+              })
+            }
           />
           <input
             required
             minLength={setup ? 12 : 1}
             type="password"
-            placeholder="Password"
+            placeholder={t("password")}
             value={auth.password}
-            onChange={(e) => A({ ...auth, password: e.target.value })}
+            onChange={(e) =>
+              A({
+                ...auth,
+                password: e.target.value,
+              })
+            }
           />
           {setup && setupTokenRequired && (
             <label>
-              Render Environment → SETUP_TOKEN
+              {t("setupTokenHelp")}
               <input
                 required
                 type="password"
                 autoComplete="off"
-                placeholder="Setup token"
+                placeholder={t("setupToken")}
                 value={auth.setupToken || ""}
-                onChange={(e) => A({ ...auth, setupToken: e.target.value })}
+                onChange={(e) =>
+                  A({
+                    ...auth,
+                    setupToken: e.target.value,
+                  })
+                }
               />
             </label>
           )}
-          <button disabled={busy}>{setup ? "建立並登入" : "登入"}</button>
-          {err && <p className="error">{err}</p>}
-          <small>首次使用請設定至少 12 字元密碼。無預設帳密。</small>
+          <button disabled={busy}>
+            {setup ? t("createAndSignIn") : t("signIn")}
+          </button>
+          {err && <p className="error">{localizeError(err, lang)}</p>}
+          <small>{t("passwordHint")}</small>
         </form>
       </main>
     );
@@ -291,11 +360,12 @@ export default function App() {
           <div className="brandmark">＋</div>
           <div>
             CGMH <b>PREMII</b>
-            <small>NICU RESEARCH TRACKER</small>
+            <small>{t("brandSubtitle")}</small>
           </div>
         </div>
         <div className="workspace">
-          研究工作區 <span>WORKSPACE</span>
+          {t("workspace")}
+          <span>{t("workspaceCaption")}</span>
         </div>
         <nav>
           {[
@@ -327,7 +397,7 @@ export default function App() {
         <div className="asidebottom">
           <button onClick={() => nav("settings")}>⚙　{t("settings")}</button>
           <div className="secure">
-            ●　Private research workspace
+            {t("privateWorkspace")}
             <br />
             <small>Asia/Taipei · UTC+08:00</small>
           </div>
@@ -335,9 +405,10 @@ export default function App() {
             <span>{session.name.slice(0, 1)}</span>
             <div>
               {session.name}
-              <small>{session.role}</small>
+              <small>{t(session.role)}</small>
             </div>
             <button
+              aria-label={t("logout")}
               onClick={() =>
                 act(async () => {
                   await api("logout", {});
@@ -356,19 +427,14 @@ export default function App() {
             NICU <span className="muted">/</span> {t(page)}
           </span>
           <div>
-            <span className="demo">模擬資料 / DEMO</span>
-            <button
-              className="language"
-              onClick={() => L(lang === "zh" ? "en" : "zh")}
-            >
-              ◎ {lang === "zh" ? "English" : "繁體中文"}
-            </button>
+            <span className="demo">{t("demoLabel")}</span>
+            {languageSwitch}
           </div>
         </header>
         <main>
           <div className="title">
             <div>
-              <div className="eyebrow">CGMH · PREMII RESEARCH</div>
+              <div className="eyebrow">{t("researchEyebrow")}</div>
               <h1>{t(page)}</h1>
               <p>{page === "dashboard" ? t("welcome") : t("subtitle")}</p>
             </div>
@@ -396,20 +462,22 @@ export default function App() {
           </div>
           {err && (
             <div role="alert" className="error">
-              {err}
-              <button onClick={() => E("")}>×</button>
+              {localizeError(err, lang)}
+              <button aria-label={t("dismiss")} onClick={() => E("")}>
+                ×
+              </button>
             </div>
           )}
           {msg && (
             <div role="status" className="success">
-              ✓ {msg}
+              ✓ {t(msg)}
             </div>
           )}
           {page === "dashboard" && (
             <>
               <div className="stats">
                 {[
-                  ["infants", data.infants.length, "研究個案 / INFANTS", "♧"],
+                  ["infants", data.infants.length, t("infantMetric"), "♧"],
                   [
                     "draft",
                     data.shifts.filter((s: any) => s.status === "draft").length,
@@ -447,7 +515,9 @@ export default function App() {
                     </div>
                     <strong>{n}</strong>
                     <small>
-                      {k === "pending" ? "待研究人員審閱" : "PREMII · NICU"}
+                      {k === "pending"
+                        ? t("reviewMetricHint")
+                        : "PREMII · NICU"}
                     </small>
                   </button>
                 ))}
@@ -457,17 +527,18 @@ export default function App() {
                 <div>
                   <b>{t("score")}</b>
                   <p>
-                    PREMII 回答碼與觀察值可用；總分待 CGMH 確認。
-                    <span className="muted">　Rule v.pdf-word-2026.1</span>
+                    {t("scoreHint")}
+                    <span className="muted"> {t("ruleVersionCaption")}</span>
                   </p>
                 </div>
                 <button className="text" onClick={() => nav("settings")}>
-                  查看規則 ↗
+                  {t("viewRules")}
                 </button>
               </div>
               <div className="sectionhead">
                 <h2>
-                  近期評估 <small>RECENT ASSESSMENTS</small>
+                  {t("recentAssessments")}
+                  <small>{t("recentCaption")}</small>
                 </h2>
                 <button className="text" onClick={() => nav("shifts")}>
                   {t("all")} →
@@ -477,7 +548,7 @@ export default function App() {
               <div className="twocol">
                 <section className="card">
                   <h2>{t("missing")}</h2>
-                  <p className="muted">待補齊的觀察，不以零替代缺值。</p>
+                  <p className="muted">{t("missingHint")}</p>
                   {data.shifts
                     .filter((s: any) => validate(normalize(s), true).length)
                     .slice(0, 3)
@@ -494,21 +565,22 @@ export default function App() {
                           }
                         </b>
                         <span>
-                          {validate(normalize(s), true).length} 項待補充 →
+                          {validate(normalize(s), true).length}{" "}
+                          {t("incompleteSuffix")}
                         </span>
                       </button>
                     ))}
                   {!data.shifts.length && <p>{t("empty")}</p>}
                 </section>
                 <section className="card protocol">
-                  <span className="eyebrow">RESEARCH PROTOCOL</span>
-                  <h2>每一筆資料，皆可追溯。</h2>
+                  <span className="eyebrow">{t("researchProtocol")}</span>
+                  <h2>{t("traceableTitle")}</h2>
                   <p>
-                    觀察資料、問卷回答碼及計算結果分開保存。
+                    {t("traceableBody")}
                     <br />
-                    保留來源證據、審核狀態與版本紀錄。
+                    {t("traceableDetails")}
                   </p>
-                  <div>PDF → 觀察 → 回答碼 → 審核</div>
+                  <div>{t("traceableFlow")}</div>
                 </section>
               </div>
             </>
@@ -521,7 +593,11 @@ export default function App() {
                   value={query}
                   onChange={(e) => Q(e.target.value)}
                 />
-                <select value={status} onChange={(e) => ST(e.target.value)}>
+                <select
+                  aria-label={t("status")}
+                  value={status}
+                  onChange={(e) => ST(e.target.value)}
+                >
                   <option value="">{t("all")}</option>
                   {["active", "closed"].map((x) => (
                     <option key={x} value={x}>
@@ -530,6 +606,7 @@ export default function App() {
                   ))}
                 </select>
                 <input
+                  aria-label={t("from")}
                   type="date"
                   value={from.slice(0, 10)}
                   onChange={(e) =>
@@ -537,6 +614,7 @@ export default function App() {
                   }
                 />
                 <input
+                  aria-label={t("to")}
                   type="date"
                   value={to.slice(0, 10)}
                   onChange={(e) =>
@@ -550,10 +628,10 @@ export default function App() {
                     <tr>
                       {[
                         "study",
-                        "出生 / Birth",
-                        "胎齡 GA",
-                        "出生體重",
-                        "PNA / PMA",
+                        "birth",
+                        "gestationalAge",
+                        "birthWeight",
+                        "ages",
                         "status",
                         "",
                       ].map((x) => (
@@ -596,16 +674,21 @@ export default function App() {
                             </td>
                             <td>{fmt(i.birth)}</td>
                             <td>
-                              {i.gaWeeks}w {i.gaDays}d
+                              {i.gaWeeks}
+                              {t("weeksShort")} {i.gaDays}
+                              {t("daysShort")}
                             </td>
                             <td>{i.birthWeight} g</td>
                             <td>
-                              {days}d / {Math.floor(pma / 7)}w {pma % 7}d
+                              {days}
+                              {t("daysShort")} / {Math.floor(pma / 7)}
+                              {t("weeksShort")} {pma % 7}
+                              {t("daysShort")}
                             </td>
                             <td>{badge(i.status)}</td>
                             <td>
                               <button className="text" onClick={() => IF(i)}>
-                                Edit
+                                {t("edit")}
                               </button>
                             </td>
                           </tr>
@@ -617,14 +700,11 @@ export default function App() {
               {detail && (
                 <section className="card">
                   <h2>{detail.code}</h2>
-                  <p>
-                    Asia/Taipei · PNA = floor(elapsed hours / 24); PMA = birth
-                    GA + PNA
-                  </p>
+                  <p>{t("ageConvention")}</p>
                   {table(
                     data.shifts.filter((s: any) => s.infantId === detail.id),
                   )}
-                  <p>
+                  <p className="user-content">
                     {data.imports
                       .flatMap((x: any) =>
                         x.suggestions
@@ -655,14 +735,17 @@ export default function App() {
                     onChange={async (e) => {
                       const f = e.target.files?.[0];
                       if (f) {
-                        PV({ name: f.name, text: await f.text() });
+                        PV({
+                          name: f.name,
+                          text: await f.text(),
+                        });
                         E("");
                       }
                     }}
                   />
                 </label>
                 <input
-                  placeholder="搜尋來源文字 / Search source"
+                  placeholder={t("searchSource")}
                   value={source}
                   onChange={(e) => SRC(e.target.value)}
                 />
@@ -671,13 +754,15 @@ export default function App() {
                 <section className="card">
                   <h2>{preview.name}</h2>
                   <p>
-                    IDs:{" "}
+                    {t("sourceIds")}{" "}
                     {[...preview.text.matchAll(/【研究ID[：:]\s*([^】]+)】/g)]
                       .map((x: any) => x[1])
-                      .join(", ") || "unassigned"}{" "}
-                    · 請在匯入後逐項分派研究個案。
+                      .join(", ") || t("unassigned")}{" "}
+                    {t("assignAfterImport")}
                   </p>
-                  <pre>{preview.text.slice(0, 18000)}</pre>
+                  <pre className="user-content">
+                    {preview.text.slice(0, 18000)}
+                  </pre>
                   <button
                     onClick={() =>
                       act(async () => {
@@ -687,10 +772,10 @@ export default function App() {
                       })
                     }
                   >
-                    確認匯入 / Confirm import
+                    {t("confirmImport")}
                   </button>
                   <button className="secondary" onClick={() => PV(null)}>
-                    取消
+                    {t("cancel")}
                   </button>
                 </section>
               )}
@@ -702,7 +787,7 @@ export default function App() {
                       <summary>
                         {x.name} · {x.suggestions.length}
                       </summary>
-                      <pre>
+                      <pre className="user-content">
                         {x.text
                           .split("\n")
                           .map((l: string, i: number) =>
@@ -721,7 +806,7 @@ export default function App() {
                 <section className="card">
                   <h2>PREMII · {t("evidence")}</h2>
                   <label>
-                    選擇評估 / Select shift
+                    {t("selectShift")}
                     <select
                       value={evidenceShift}
                       onChange={(e) => ES(e.target.value)}
@@ -769,25 +854,39 @@ export default function App() {
                       s.shiftId !== evidenceShift ? null : (
                         <article className="suggestion" key={x.id + index}>
                           <b>
-                            {s.field} → {String(s.value)}
+                            {s.field === "weight"
+                              ? t("weight")
+                              : s.field === "fio2"
+                                ? "FiO₂"
+                                : s.field}{" "}
+                            → {String(s.value)}
                           </b>
                           {badge(s.status)}
-                          <blockquote>{s.quote}</blockquote>
+                          <blockquote className="user-content">
+                            {s.quote}
+                          </blockquote>
                           <small>
-                            {x.name} · Line {s.line} · Offset {s.offset} ·{" "}
-                            {s.method}
+                            {x.name} {t("sourceLine")} {s.line}{" "}
+                            {t("sourceOffset")} {s.offset} ·{" "}
+                            {s.method === "regex-v1"
+                              ? t("extractionMethod")
+                              : s.method}
                             <br />
-                            記錄時間 {s.noteTime || "unknown"} / 事件時間{" "}
-                            {s.eventTime || "unknown"}
+                            {t("noteTime")}{" "}
+                            {s.noteTime ? fmt(s.noteTime) : t("unknown")}{" "}
+                            {t("eventTimeDivider")}{" "}
+                            {s.eventTime ? fmt(s.eventTime) : t("unknown")}
                             <br />
-                            研究ID {s.child}
-                            {s.contextWarning &&
-                              " ⚠ Negation / plan / history: insufficient"}
+                            {t("sourceStudyId")}{" "}
+                            {s.child === "unassigned"
+                              ? t("unassigned")
+                              : s.child}
+                            {s.contextWarning && t("contextWarning")}
                           </small>
                           <label>
-                            個案 / Infant
+                            {t("infant")}
                             <select
-                              aria-label="個案 / Infant"
+                              aria-label={t("infant")}
                               value={s.infantId || ""}
                               onChange={(e) =>
                                 updateSuggestion(x.id, index, {
@@ -805,9 +904,9 @@ export default function App() {
                             </select>
                           </label>
                           <label>
-                            評估 / Shift
+                            {t("assessment")}
                             <select
-                              aria-label="評估 / Shift"
+                              aria-label={t("assessment")}
                               value={s.shiftId || ""}
                               onChange={(e) =>
                                 updateSuggestion(x.id, index, {
@@ -829,7 +928,7 @@ export default function App() {
                             </select>
                           </label>
                           <label>
-                            事件時間
+                            {t("eventTime")}
                             <input
                               type="datetime-local"
                               value={local(s.eventTime)}
@@ -841,7 +940,7 @@ export default function App() {
                             />
                           </label>
                           <label>
-                            觀察值
+                            {t("observedValue")}
                             <input
                               value={s.value}
                               onChange={(e) =>
@@ -901,14 +1000,14 @@ export default function App() {
               <div className="charts">
                 {[
                   ["WEIGHT1", t("weight"), "g"],
-                  ["RES1", t("resp"), "level"],
+                  ["RES1", t("resp"), t("levelUnit")],
                   ["fio2", "FiO₂", "%"],
-                  ["ABD1_1", "Apnea + intervention", "events"],
-                  ["ABD1_2", "Apnea without intervention", "events"],
-                  ["ABD2_1", "Bradycardia + intervention", "events"],
-                  ["ABD2_2", "Bradycardia without intervention", "events"],
-                  ["ABD3_1", "Desaturation + intervention", "events"],
-                  ["ABD3_2", "Desaturation without intervention", "events"],
+                  ["ABD1_1", t("apneaIntervention"), t("eventUnit")],
+                  ["ABD1_2", t("apneaNoIntervention"), t("eventUnit")],
+                  ["ABD2_1", t("bradyIntervention"), t("eventUnit")],
+                  ["ABD2_2", t("bradyNoIntervention"), t("eventUnit")],
+                  ["ABD3_1", t("desatIntervention"), t("eventUnit")],
+                  ["ABD3_2", t("desatNoIntervention"), t("eventUnit")],
                 ].map(([k, label, unit]) => {
                   const sorted = [
                     ...list.filter(
@@ -926,7 +1025,7 @@ export default function App() {
                       <div className="chart">
                         {sorted.map((s: any) => (
                           <button
-                            title={`${fmt(s.start)}: ${s[k] ?? "missing"}`}
+                            title={`${fmt(s.start)}: ${s[k] ?? t("missingObservation")}`}
                             key={s.id}
                             className={
                               "bar " + (s[k] == null ? "missingbar" : "")
@@ -949,7 +1048,7 @@ export default function App() {
                           ? `${fmt(sorted[0].start)} — ${fmt(sorted.at(-1).end)}`
                           : t("noData")}
                       </p>
-                      <small>缺失觀察以 ? 顯示；未填補無評估的時間。</small>
+                      <small>{t("chartMissingHint")}</small>
                     </section>
                   );
                 })}
@@ -959,12 +1058,11 @@ export default function App() {
           {page === "exports" && (
             <section className="card">
               <h2>
-                研究資料匯出 <small>UTF-8 · CSV</small>
+                {t("researchExport")}
+                <small>UTF-8 · CSV</small>
               </h2>
               {filters()}
-              <p>
-                包含觀察值、回答碼、單位、缺值狀態、UTC 時間、表單及規則版本。
-              </p>
+              <p>{t("exportHint")}</p>
               <a
                 className="button"
                 href={
@@ -979,40 +1077,26 @@ export default function App() {
               >
                 {t("download")} ↓
               </a>
-              <h3>Data dictionary</h3>
+              <h3>{t("dataDictionary")}</h3>
               <p>
-                RES1: 0–5 · RES2: 1–3 · RES3: 1 oxygen / 2 air · flowL: L/min ·
-                OA: 1–6
+                {t("dictionaryResp")}
                 <br />
-                ABD1_1/2: apnea with/without intervention · ABD2: HR threshold ·
-                ABD3: SpO₂ threshold
+                {t("dictionaryEvents")}
                 <br />
-                THG1: 1–3 · THG2: device · FEED1: 1–6 · FEED2: breast/bottle ·
-                WEIGHT1: lowest g<br />
-                Missing states: value / unknown / skipped. score: always unknown
-                until validated.
+                {t("dictionaryOther")}
+                <br />
+                {t("dictionaryMissing")}
               </p>
             </section>
           )}
           {page === "settings" && (
             <>
               <section className="card">
-                <h2>PDF ↔ Word · 規則版本 pdf-word-2026.1</h2>
+                <h2>{t("rulesTitle")}</h2>
                 <p>{t("score")}</p>
-                <p>
-                  PDF supersedes Word's low-flow “Ncpap” wording. nCPAP →
-                  RES1=4; continuous low-flow nasal cannula → RES1=2; OA
-                  skipped. 2 L/min belongs to pressure support.
-                </p>
-                <p>
-                  OA: 21=1; 22–30=2; 31–40=3; 41–50=4; 51–60=5; ≥61=6. Decimal
-                  gaps require manual category + evidence. Codes are response
-                  codes, not validated scores.
-                </p>
-                <p>
-                  PDF asks prescribed caffeine; Word implies administration.
-                  Both prescription and administration are stored separately.
-                </p>
+                <p>{t("respRules")}</p>
+                <p>{t("oxygenRules")}</p>
+                <p>{t("medicationRules")}</p>
                 {session.role === "admin" && (
                   <button
                     onClick={() =>
@@ -1022,13 +1106,13 @@ export default function App() {
                       })
                     }
                   >
-                    建立模擬資料 / Seed synthetic data
+                    {t("seed")}
                   </button>
                 )}
               </section>
               {session.role === "admin" && (
                 <section className="card">
-                  <h2>使用者 / Accounts</h2>
+                  <h2>{t("accounts")}</h2>
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
@@ -1040,25 +1124,25 @@ export default function App() {
                     }}
                     className="formgrid"
                   >
-                    <input name="id" required placeholder="Account ID" />
-                    <input name="name" required placeholder="Name" />
+                    <input name="id" required placeholder={t("accountId")} />
+                    <input name="name" required placeholder={t("name")} />
                     <input
                       name="password"
                       type="password"
                       minLength={12}
                       required
-                      placeholder="Password ≥12"
+                      placeholder={t("passwordMinimum")}
                     />
-                    <select name="role">
-                      <option value="entry">Entry</option>
-                      <option value="reviewer">Reviewer</option>
-                      <option value="admin">Admin</option>
+                    <select name="role" aria-label={t("role")}>
+                      <option value="entry">{t("entry")}</option>
+                      <option value="reviewer">{t("reviewer")}</option>
+                      <option value="admin">{t("admin")}</option>
                     </select>
-                    <button>Create account</button>
+                    <button>{t("createAccount")}</button>
                   </form>
                   {data.users.map((u: any) => (
                     <p key={u.id}>
-                      {u.id} · {u.name} · {u.role}
+                      {u.id} · {u.name} · {t(u.role)}
                     </p>
                   ))}
                 </section>
@@ -1074,9 +1158,11 @@ export default function App() {
                         {fmt(a.time)} · {a.actor} · {a.entity}
                       </summary>
                       <pre>
-                        Before: {a.beforeData}
+                        {t("before")}
+                        <span className="user-content">{a.beforeData}</span>
                         <br />
-                        After: {a.afterData}
+                        {t("after")}
+                        <span className="user-content">{a.afterData}</span>
                       </pre>
                     </details>
                   ))}
@@ -1084,8 +1170,7 @@ export default function App() {
             </>
           )}
           <footer>
-            CGMH PREMII Tracker{" "}
-            <span>研究用途 · Research use　 /　 Asia/Taipei</span>
+            CGMH PREMII Tracker <span>{t("footer")}</span>
           </footer>
         </main>
       </div>
@@ -1104,9 +1189,17 @@ export default function App() {
           >
             <div className="modalhead">
               <h2>{t("newInfant")}</h2>
-              <button type="button" className="text" onClick={() => IF(null)}>
-                ×
-              </button>
+              <div className="modal-controls">
+                {languageSwitch}
+                <button
+                  type="button"
+                  className="text"
+                  aria-label={t("close")}
+                  onClick={() => IF(null)}
+                >
+                  ×
+                </button>
+              </div>
             </div>
             <div className="formgrid">
               <label>
@@ -1114,13 +1207,18 @@ export default function App() {
                 <input
                   required
                   value={inf.code}
-                  onChange={(e) => IF({ ...inf, code: e.target.value })}
+                  onChange={(e) =>
+                    IF({
+                      ...inf,
+                      code: e.target.value,
+                    })
+                  }
                 />
               </label>
               {[
-                ["birth", "出生時間 / Birth"],
-                ["admitted", "入院時間 / Admission"],
-                ["ended", "結束追蹤 / Follow-up end"],
+                ["birth", t("birth")],
+                ["admitted", t("admission")],
+                ["ended", t("followupEnd")],
               ].map(([k, label]) => (
                 <label key={k}>
                   {label}
@@ -1128,14 +1226,19 @@ export default function App() {
                     required={k !== "ended"}
                     type="datetime-local"
                     value={local(inf[k])}
-                    onChange={(e) => IF({ ...inf, [k]: utc(e.target.value) })}
+                    onChange={(e) =>
+                      IF({
+                        ...inf,
+                        [k]: utc(e.target.value),
+                      })
+                    }
                   />
                 </label>
               ))}
               {[
-                ["gaWeeks", "GA weeks"],
-                ["gaDays", "GA days"],
-                ["birthWeight", "Birth weight (g)"],
+                ["gaWeeks", t("gaWeeks")],
+                ["gaDays", t("gaDays")],
+                ["birthWeight", t("birthWeightGrams")],
               ].map(([k, label]) => (
                 <label key={k}>
                   {label}
@@ -1144,7 +1247,10 @@ export default function App() {
                     type="number"
                     value={inf[k]}
                     onChange={(e) =>
-                      IF({ ...inf, [k]: Number(e.target.value) })
+                      IF({
+                        ...inf,
+                        [k]: Number(e.target.value),
+                      })
                     }
                   />
                 </label>
@@ -1153,7 +1259,12 @@ export default function App() {
                 {t("status")}
                 <select
                   value={inf.status}
-                  onChange={(e) => IF({ ...inf, status: e.target.value })}
+                  onChange={(e) =>
+                    IF({
+                      ...inf,
+                      status: e.target.value,
+                    })
+                  }
                 >
                   <option value="active">{t("active")}</option>
                   <option value="closed">{t("closed")}</option>
@@ -1161,7 +1272,7 @@ export default function App() {
               </label>
             </div>
             <button disabled={busy}>{t("save")}</button>
-            {err && <p className="error">{err}</p>}
+            {err && <p className="error">{localizeError(err, lang)}</p>}
           </form>
         </div>
       )}
@@ -1178,12 +1289,19 @@ export default function App() {
                   {t("shifts")} {badge(form.status)}
                 </h2>
               </div>
-              <button className="text" onClick={() => F(null)}>
-                ×
-              </button>
+              <div className="modal-controls">
+                {languageSwitch}
+                <button
+                  className="text"
+                  aria-label={t("close")}
+                  onClick={() => F(null)}
+                >
+                  ×
+                </button>
+              </div>
             </div>
             <div className="notice compact">
-              {t("score")} · 所有時間為 Asia/Taipei
+              {t("score")} {t("allTimes")}
             </div>
             <fieldset disabled={form.status === "confirmed" || busy}>
               <div className="formgrid">
@@ -1219,23 +1337,23 @@ export default function App() {
                 op.res.map((x, i) => [i, x]),
               )}
               {form.RES1 === 5 &&
-                choice("RES2", "Device", [
-                  [3, "Endotracheal"],
-                  [2, "Tracheostomy"],
-                  [1, "Mask"],
+                choice("RES2", t("device"), [
+                  [3, t("endotracheal")],
+                  [2, t("tracheostomy")],
+                  [1, t("mask")],
                 ])}
               {form.RES1 === 2 && (
                 <div className="formgrid">
-                  {choice("RES3", "Gas source", [
-                    [2, "Air flow meter"],
-                    [1, "Oxygen flow meter"],
+                  {choice("RES3", t("gasSource"), [
+                    [2, t("airMeter")],
+                    [1, t("oxygenMeter")],
                   ])}
-                  {num("flow", "Maximum flow")}
-                  {choice("flowUnit", "Unit", [
+                  {num("flow", t("maximumFlow"))}
+                  {choice("flowUnit", t("unit"), [
                     ["L/min", "L/min"],
                     ["cc/min", "cc/min"],
                   ])}
-                  <p>OA → skipped</p>
+                  <p>{t("oaSkipped")}</p>
                 </div>
               )}
               {form.RES1 !== 2 && (
@@ -1253,11 +1371,15 @@ export default function App() {
                             e.target.value === ""
                               ? null
                               : Number(e.target.value);
-                          F({ ...form, fio2: v, OA: v == null ? null : oa(v) });
+                          F({
+                            ...form,
+                            fio2: v,
+                            OA: v == null ? null : oa(v),
+                          });
                         }}
                       />
                     </label>
-                    {choice("OA", "OA · Category", [
+                    {choice("OA", t("oaCategory"), [
                       [1, "21%"],
                       [2, "22–30%"],
                       [3, "31–40%"],
@@ -1266,7 +1388,7 @@ export default function App() {
                       [6, "≥61%"],
                     ])}
                     <label>
-                      Manual category evidence
+                      {t("manualEvidence")}
                       <input
                         value={form.oaEvidence || ""}
                         onChange={(e) => set("oaEvidence", e.target.value)}
@@ -1277,8 +1399,8 @@ export default function App() {
               )}
               <h3>03　{t("events")}</h3>
               <div className="formgrid">
-                {num("ABD2", "Bradycardia threshold", "beats/min")}
-                {num("ABD3", "Desaturation threshold", "%")}
+                {num("ABD2", t("bradyThreshold"), "beats/min")}
+                {num("ABD3", t("desatThreshold"), "%")}
                 {[
                   "ABD1_1",
                   "ABD1_2",
@@ -1293,25 +1415,25 @@ export default function App() {
                       k +
                         " · " +
                         [
-                          "Apnea + intervention",
-                          "Apnea without intervention",
-                          "Bradycardia + intervention",
-                          "Bradycardia without intervention",
-                          "Desaturation + intervention",
-                          "Desaturation without intervention",
+                          t("apneaIntervention"),
+                          t("apneaNoIntervention"),
+                          t("bradyIntervention"),
+                          t("bradyNoIntervention"),
+                          t("desatIntervention"),
+                          t("desatNoIntervention"),
                         ][i],
                     )}
                   </div>
                 ))}
-                {choice("caffeine", "Caffeine / stimulant prescribed", yn)}
+                {choice("caffeine", t("prescribed"), yn)}
                 <label>
-                  Drug name
+                  {t("drugName")}
                   <input
                     value={form.drug || ""}
                     onChange={(e) => set("drug", e.target.value)}
                   />
                 </label>
-                {choice("administered", "Medication administered", yn)}
+                {choice("administered", t("administered"), yn)}
               </div>
               <h3>04　{t("thermal")}</h3>
               <div className="formgrid">
@@ -1321,28 +1443,24 @@ export default function App() {
                   op.thermal.map((x, i) => [i + 1, x]),
                 )}
                 {form.THG1 === 3 &&
-                  choice("THG2", "THG2 · Device", [
-                    [2, "Incubator"],
-                    [1, "Radiant warmer"],
+                  choice("THG2", t("thermalDevice"), [
+                    [2, t("incubator")],
+                    [1, t("radiantWarmer")],
                   ])}
               </div>
               <h3>05　{t("feeding")}</h3>
-              {choice(
-                "feeds",
-                "Any feeds incl. amino acid / lipid IV nutrition?",
-                yn,
-              )}
+              {choice("feeds", t("anyFeeds"), yn)}
               {form.feeds === "yes" && (
                 <>
                   {choice(
                     "FEED1",
-                    "FEED1 · Worst experience",
+                    t("feedingWorst"),
                     op.feed.map((x, i) => [i + 1, x]),
                   )}
                   <div className="checks">
                     {[
-                      [2, "Breast"],
-                      [1, "Bottle"],
+                      [2, t("breast")],
+                      [1, t("bottle")],
                     ].map(([v, label]) => (
                       <label key={v}>
                         <input
@@ -1362,7 +1480,7 @@ export default function App() {
                     ))}
                   </div>
                   <label>
-                    Additional routes observed
+                    {t("additionalRoutes")}
                     <textarea
                       value={form.routes || ""}
                       onChange={(e) => set("routes", e.target.value)}
@@ -1372,37 +1490,42 @@ export default function App() {
               )}
               <h3>06　{t("weight")}</h3>
               <div className="formgrid">
-                {num("baselineWeight", "First assessment: prior weight", "g")}
+                {num("baselineWeight", t("priorWeight"), "g")}
                 <label>
-                  Prior measurement time
+                  {t("priorMeasurementTime")}
                   <input
                     type="datetime-local"
                     value={local(form.baselineTime)}
                     onChange={(e) => set("baselineTime", utc(e.target.value))}
                   />
                 </label>
-                {choice("weighed", "Weighed during shift?", yn)}
+                {choice("weighed", t("weighedDuringShift"), yn)}
               </div>
               {form.weighed === "yes" && (
                 <>
-                  <p>記錄所有測量；自動選擇最低體重。</p>
+                  <p>{t("weightHint")}</p>
                   {form.measurements?.map((m: any, i: number) => (
                     <div className="formgrid" key={i}>
                       <input
-                        aria-label="Weight time"
+                        aria-label={t("weightTime")}
                         type="datetime-local"
                         value={local(m.time)}
                         onChange={(e) =>
                           set(
                             "measurements",
                             form.measurements.map((x: any, j: number) =>
-                              j === i ? { ...x, time: utc(e.target.value) } : x,
+                              j === i
+                                ? {
+                                    ...x,
+                                    time: utc(e.target.value),
+                                  }
+                                : x,
                             ),
                           )
                         }
                       />
                       <input
-                        aria-label="Weight grams"
+                        aria-label={t("weightGrams")}
                         type="number"
                         value={m.value}
                         onChange={(e) =>
@@ -1410,7 +1533,10 @@ export default function App() {
                             "measurements",
                             form.measurements.map((x: any, j: number) =>
                               j === i
-                                ? { ...x, value: Number(e.target.value) }
+                                ? {
+                                    ...x,
+                                    value: Number(e.target.value),
+                                  }
                                 : x,
                             ),
                           )
@@ -1427,7 +1553,7 @@ export default function App() {
                           )
                         }
                       >
-                        Remove
+                        {t("remove")}
                       </button>
                     </div>
                   ))}
@@ -1436,23 +1562,26 @@ export default function App() {
                     onClick={() =>
                       set("measurements", [
                         ...(form.measurements || []),
-                        { time: form.start, value: "" },
+                        {
+                          time: form.start,
+                          value: "",
+                        },
                       ])
                     }
                   >
-                    ＋ Measurement
+                    {t("addMeasurement")}
                   </button>
                 </>
               )}
               <label>
-                Review notes / Missing-state explanations
+                {t("reviewNotes")}
                 <textarea
                   value={form.notes || ""}
                   onChange={(e) => set("notes", e.target.value)}
                 />
               </label>
             </fieldset>
-            {err && <p className="error">{err}</p>}
+            {err && <p className="error">{localizeError(err, lang)}</p>}
             <div className="modalfoot">
               <div>
                 {form.enteredBy} {form.reviewedBy && "→ " + form.reviewedBy}
@@ -1468,10 +1597,10 @@ export default function App() {
                       className="secondary"
                       onClick={() => {
                         const es = validate(normalize(form), true);
-                        es.length ? E(es.join("; ")) : M("Validation passed");
+                        es.length ? E(es.join("; ")) : M("validationPassed");
                       }}
                     >
-                      檢查 / Validate
+                      {t("validate")}
                     </button>
                     <button className="secondary" onClick={() => save("draft")}>
                       {t("save")}
@@ -1495,7 +1624,7 @@ export default function App() {
               </div>
             </div>
             <section>
-              <h3>來源證據 / Linked evidence</h3>
+              <h3>{t("linkedEvidence")}</h3>
               {data.imports.flatMap((x: any) =>
                 x.suggestions
                   .filter((s: any) => s.shiftId === form.id)
@@ -1504,9 +1633,11 @@ export default function App() {
                       <b>
                         {x.name} · L{s.line} · {s.field} {badge(s.status)}
                       </b>
-                      <p>{s.quote}</p>
+                      <p className="user-content">{s.quote}</p>
                       <small>
-                        Note {fmt(s.noteTime)} / Event {fmt(s.eventTime)}
+                        {t("noteTime")}
+                        {fmt(s.noteTime)} {t("eventTimeDivider")}{" "}
+                        {fmt(s.eventTime)}
                       </small>
                     </blockquote>
                   )),
@@ -1538,7 +1669,11 @@ export default function App() {
           value={query}
           onChange={(e) => Q(e.target.value)}
         />
-        <select value={selected} onChange={(e) => SEL(e.target.value)}>
+        <select
+          aria-label={t("infant")}
+          value={selected}
+          onChange={(e) => SEL(e.target.value)}
+        >
           <option value="">
             {t("all")} · {t("infants")}
           </option>
@@ -1559,13 +1694,13 @@ export default function App() {
           ))}
         </select>
         <input
-          aria-label="From"
+          aria-label={t("from")}
           type="datetime-local"
           value={from}
           onChange={(e) => FR(e.target.value)}
         />
         <input
-          aria-label="To"
+          aria-label={t("to")}
           type="datetime-local"
           value={to}
           onChange={(e) => TO(e.target.value)}

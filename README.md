@@ -30,6 +30,7 @@ npm run test:api
 # First run on your own machine:
 npx playwright install chromium
 npm run test:browser
+npm run test:i18n
 ```
 
 Browser tests run a real Chromium against a temporary Next.js server and synthetic database. Set `CHROMIUM_PATH=/usr/bin/chromium` to use an installed system Chromium. The text report is in `docs/browser-test-results.json`; screenshots are generated locally under the ignored `docs/screenshots/` directory.
@@ -48,6 +49,12 @@ This runs API, browser and restart tests in separate schemas of one disposable d
 
 Dashboard; infant creation/search/filter and details; arbitrary shifts crossing midnight; draft/submit/request changes/confirm; confirmed revisions and audit history; timestamped source review and multi-infant TXT suggestions; response branching; raw measurement trends; UTF8 CSV export and dictionary; server-side roles; optimistic version checks and transactional shift updates. Passwords are scrypt-hashed; sessions use HTTP-only SameSite cookies and expire in 8h.
 
+## Interface language
+
+Use the language button on the sign-in screen, application header or open form to switch between **English** and **繁體中文**. Each mode translates navigation, forms, response choices, rules, source-review controls, status messages, validation and sign-in errors. The browser remembers the choice across reloads and sign-outs. Switching keeps unsaved form values. Dates use the chosen locale and always retain Asia/Taipei time. Original source notes, study identifiers and PREMII response codes remain unchanged.
+
+`npm run test:i18n` checks both modes across every page and conditional form branch, login errors, preference persistence, source preservation and tablet layout using synthetic records. Its report is `docs/i18n-test-results.json`.
+
 ## Rules
 
 See `docs/DOCUMENT_CROSSWALK.md` and `docs/DATA_DICTIONARY.md`. Total score is intentionally disabled. Original source files are not included. The app does not upload clinical notes to an AI service.
@@ -56,8 +63,7 @@ See `docs/DOCUMENT_CROSSWALK.md` and `docs/DATA_DICTIONARY.md`. Total score is i
 
 - This is a research prototype, not a certified clinical device. Final research rule approval remains pending.
 - Browser UI verification passed on Chromium: setup/login, synthetic seed, infant creation, overnight assessment, conditional OA, source review, confirmation, trend navigation, CSV download and tablet layout. No uncaught page JavaScript errors were observed.
-- A live application preview URL is unavailable because the managed preview relay is not running. The private download Site serves an earlier source ZIP; GitHub main contains the latest source. Run this application using the instructions above. GitHub Pages and static hosting cannot run its persistent backend.
-- UI has centralized main navigation/status labels in Traditional Chinese and English. Some detailed clinical/help labels remain bilingual rather than fully translated.
+- The deployed application is available at https://cgmh-premii-tracker-free.onrender.com. GitHub main contains the current source. GitHub Pages and static hosting cannot run its persistent backend.
 - Regex extraction is deliberately conservative and limited to nCPAP/mechanical ventilation, explicit cannula flows, FiO2%, weight and feeding terms. It does not automatically populate forms, infer shift assignment, parse every respiratory device or count events. Humans review source and enter final observations. Context warnings are heuristic and are not clinical inference.
 - Review UI associates evidence decisions with infants/shifts and preserves source line/offset. Concurrent evidence review and shifts both use optimistic version checks. Import confirmation is hash-deduplicated; source review and form update are separate actions.
 - Trend charts show individual observations and missing values without interpolation. Horizontal point positions use actual timestamps; empty intervals are left blank. A dedicated gap timeline is not included.
