@@ -1,51 +1,55 @@
-# PREMII file-only workspace
+# CGMH PREMII Tracker
 
-English / Traditional Chinese website for extracting documented PREMII observations from uploaded medical records. There is **no manual assessment form**. The workflow is upload → automatic extraction → inspect read-only evidence → export PDF/JSON/CSV.
+A research prototype using Next.js + TypeScript + backend SQLite (Node 24 built-in). SQLite is the environment-appropriate equivalent to PostgreSQL for a single-server research workspace. It stores records on disk; browser storage is not used for clinical records.
 
-## Run and build
+## Run
 
-Python 3.12+ serves the site locally:
-
-```bash
-cd /workspace/PREMII-
-python3 server.py --host 0.0.0.0 --port 3000
+```
+npm ci
+cp .env.example .env.local
+npm run dev
 ```
 
-Document readers are bundled locally in public/vendor. Node.js 24+ refreshes them:
+Open http://localhost:3000, create the first administrator with a password of at least 12 characters. Settings → Seed synthetic data populates eight fictitious infants and 24 shifts. Add entry and reviewer accounts from Settings. No default credentials. Production: `npm run build && npm start`.
 
-```bash
-npm ci --ignore-scripts --no-audit --no-fund
+Database schema migration is in `migrations/001.sql`; startup applies the same idempotent schema. Back up the complete data directory using SQLite backup facilities or with server stopped; do not copy a live WAL database piecemeal. Use a persistent volume for `DATABASE_PATH`, HTTPS and hospital network controls. Do not run this SQLite edition on ephemeral/serverless storage. PostgreSQL migration and institutional identity integration are future deployment work.
+
+## Validation
+
+```
+npm test
+npm run typecheck
 npm run build
+npm run test:api
+# First run on your own machine:
+npx playwright install chromium
+npm run test:browser
 ```
 
-No database, API credentials or external inference service is required by the website. All documents are read in the visitor's browser.
+Browser tests run a real Chromium against a temporary Next.js server and synthetic database. Set `CHROMIUM_PATH=/usr/bin/chromium` to use an installed system Chromium. The text report is in `docs/browser-test-results.json`; screenshots are generated locally under the ignored `docs/screenshots/` directory.
 
-## File-only workflow
+API smoke starts a temporary local server/database, verifies authentication/roles, CRUD, overlap, review, revisions, conflict checks, imports and CSV, then removes test artifacts. It does not publish clinical data.
 
-- Select one or more TXT (UTF-8 or Big5), DOCX or text-based PDF files. Maximum 10 MB/file, 200 PDF pages, 2 million extracted characters/file and 3000 source observations/session. Scanned PDFs require OCR first. Blank PREMII questionnaire templates are not patient records.
-- Processing starts automatically. Explicit study/infant ID headings and standalone dated note headings separate source observations. Identifiers retain leading zeros. Unknown IDs, dates, shifts, start/end times and event counts remain null; no current date or shift schedule is invented. Source note timestamps are not shift boundaries.
-- Supported explicit item codes and recognizable current support/FiO2/weight/TPN/warming/caffeine observations are extracted with evidence. Text rules are conservative and can miss or misread clinical context, history and negation. Unrecognized information remains **Not found in source**, rather than normal, zero or No. Conflicting explicit codes remain unresolved. Nothing is clinically verified merely because extraction succeeded.
-- **View source results** selects a source note to inspect, without entering or completing data. Results and the source text are read-only. There is no Save assessment step; records are created automatically during import.
-- **Export selected PDF** opens the browser print dialog; choose Save as PDF, A4, with browser headers/footers disabled. An adapted seven-page report follows the source questionnaire sections and four-column layout. An explicit shift is put in its correct column; an unspecified shift is labeled as an observation, not assigned a shift number. One selected source note is exported, preventing unrelated patients/dates from being combined.
-- JSON/CSV export all observations, including source filenames, extraction evidence and per-field missingness. Complete original note text is excluded from exports, but evidence excerpts can contain health data. Save exports securely. Session data disappears on refresh/close. Only the interface language preference persists in local storage.
+## Features
 
-These reports are source-note summaries. Without documented shift boundaries, they are **not validated per-shift PREMII measurements**. No validated total-score algorithm was supplied; the app does not calculate a total. Translation and extraction require clinical review. There are no accounts, persistent clinical storage, cross-visitor shared records or multi-user synchronization.
+Dashboard; infant creation/search/filter and details; arbitrary shifts crossing midnight; draft/submit/request changes/confirm; confirmed revisions and audit history; timestamped source review and multi-infant TXT suggestions; response branching; raw measurement trends; UTF8 CSV export and dictionary; server-side roles; optimistic version checks and transactional shift updates. Passwords are scrypt-hashed; sessions use HTTP-only SameSite cookies and expire in 8h.
 
-## Checks
+## Rules
 
-```bash
-npm run check
-python3 -m unittest discover -s tests -v
-```
+See `docs/DOCUMENT_CROSSWALK.md` and `docs/DATA_DICTIONARY.md`. Total score is intentionally disabled. Original source files are not included. The app does not upload clinical notes to an AI service.
 
-With Playwright and Chromium available, start the local server and run `node tests/test-browser.cjs`. Optional `PREMII_TEST_URL` selects a test server and `CHROMIUM_PATH` selects Chromium. The browser check generates synthetic TXT/DOCX/PDF patient documents and verifies automatic extraction, no manual-entry fields, unknown vs zero values, bilingual switching, mobile width and seven-page PDFs. It never publishes patient files.
+## Known limits and production readiness
 
-## Hosting
-
-Render uses render.yaml and builds the main branch, publishing only public/. The public service is https://premii-workspace.onrender.com . GitHub Pages is https://uyentlt.github.io/PREMII-/ ; after committing public/ changes, `bash scripts/deploy-pages.sh` publishes the committed static assets to gh-pages. Medical examples, original uploaded source documents and exported assessments must never be added to public/ or Git.
-
-[Deploy on Render](https://render.com/deploy?repo=https://github.com/UyenTLT/PREMII-)
+- This is a research prototype, not a certified clinical device. Final research rule approval remains pending.
+- Browser UI verification passed on Chromium: setup/login, synthetic seed, infant creation, overnight assessment, conditional OA, source review, confirmation, trend navigation, CSV download and tablet layout. No uncaught page JavaScript errors were observed.
+- A live application preview URL is unavailable because the managed preview relay is not running. The private download Site serves the source ZIP; it is a separate download page. Run this application using the instructions above. GitHub Pages and static hosting cannot run its persistent backend.
+- UI has centralized main navigation/status labels in Traditional Chinese and English. Some detailed clinical/help labels remain bilingual rather than fully translated.
+- Regex extraction is deliberately conservative and limited to nCPAP/mechanical ventilation, explicit cannula flows, FiO2%, weight and feeding terms. It does not automatically populate forms, infer shift assignment, parse every respiratory device or count events. Humans review source and enter final observations. Context warnings are heuristic and are not clinical inference.
+- Review UI associates evidence decisions with infants/shifts and preserves source line/offset. Concurrent evidence review and shifts both use optimistic version checks. Import confirmation is hash-deduplicated; source review and form update are separate actions.
+- Trend charts show individual observations and missing values without interpolation. Horizontal point positions use actual timestamps; empty intervals are left blank. A dedicated gap timeline is not included.
+- No password reset, account deactivation, login rate limiting, external SSO, encrypted-at-rest database, automated retention or production backup scheduler. First-admin bootstrap must be performed on a trusted private network before broader access.
+- PDF/Word supplementary mappings are documented, but raw dictionary names include `flow`/`caffeine` rather than every legacy Word alias. Export includes first weight, all measurements and missing state.
 
 ## Sources and attribution
 
-Based on the supplied English PREMature Infant Index Questionnaire and the item-code document “PREMII 建立資料用”. © 2018 Shire Human Genetic Therapies, Inc. PREMII is a trademark of Shire, a Takeda company. The original questionnaire states reproduction permission from Shire; this project does not assert independent distribution permission or clinical certification. The report is adapted, not a pixel-identical or licensed original form. Mammoth/PDF.js licenses are in public/vendor.
+Based on the supplied English PREMature Infant Index Questionnaire and “PREMII 建立資料用”. © 2018 Shire Human Genetic Therapies, Inc. PREMII is a trademark of Shire, a Takeda company. The supplied questionnaire states reproduction permission from Shire; this project does not assert independent distribution permission or clinical certification. The source records and original questionnaire files are not redistributed.

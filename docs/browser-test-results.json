@@ -1,0 +1,20 @@
+{
+  "date": "2026-11-09T03:24:38.430Z",
+  "browser": "Chromium",
+  "checks": [
+    "First-admin setup and login",
+    "Synthetic demo seed through UI",
+    "Create infant through UI",
+    "Overnight shift, draft save, explicit zero events, multiple weights and minimum selection",
+    "Low-flow branch hides OA and clears it in backend",
+    "TXT upload preview, source review, negation warning and evidence assignment",
+    "Submit and confirm assessment through UI with linked source",
+    "Infant-specific trends and point-to-form navigation",
+    "Browser CSV download includes study, rule version and conditional missingness",
+    "Desktop and tablet screenshots; no tablet horizontal document overflow",
+    "No uncaught browser JavaScript errors"
+  ],
+  "status": "passed",
+  "consoleErrors": [],
+  "record": "Synthetic data only; isolated temporary database removed after run."
+}
