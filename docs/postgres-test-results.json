@@ -1,0 +1,11 @@
+{
+  "date": "2026-11-09T03:53:48.846Z",
+  "backend": "PostgreSQL",
+  "status": "passed",
+  "checks": [
+    "api passed against PostgreSQL",
+    "browser passed against PostgreSQL",
+    "render passed against PostgreSQL"
+  ],
+  "fixtures": "Synthetic data in disposable local databases; all test databases removed."
+}

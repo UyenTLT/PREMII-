@@ -1,5 +1,9 @@
-__pycache__/
-*.pyc
-*.log
-
 node_modules/
+.next/
+data/
+.env*
+!.env.example
+*.sqlite*
+attachments/
+*.tsbuildinfo
+docs/screenshots/
