@@ -8,11 +8,11 @@ Mã nguồn mới thay ứng dụng file-only cũ ở thư mục gốc. Bản Re
 - API: xác thực/role, tạo trẻ, ca qua nửa đêm, nháp/gửi duyệt/yêu cầu sửa/xác nhận/sửa đổi, stale version, hai lần lưu đồng thời, nhập TXT trùng, bằng chứng và CSV tiếng Trung.
 - Chromium: tạo admin, seed giả lập, tạo trẻ/phiếu, chuyển low-flow/OA, đối chiếu nguồn, duyệt, biểu đồ, tải CSV và tablet.
 - Typecheck và production build; build không cần kết nối database.
-- Chạy kiểm thử API, browser và restart trên PostgreSQL thật trong container cục bộ với database giả lập riêng, xóa sau kiểm thử. Báo cáo ở docs/postgres-test-results.json.
+- Chạy kiểm thử API, browser và restart trên PostgreSQL thật trong container cục bộ với một database giả lập có bảng public.users của ứng dụng khác và các schema PREMII riêng. Kiểm tra dữ liệu public không bị thay đổi, rồi xóa database QA sau kiểm thử. Báo cáo ở docs/postgres-test-results.json.
 
 ## Deploy Free
 
-Xem docs/RENDER_DEPLOY_VI.md. render.yaml dùng plan free cho cả Web Service và PostgreSQL; không khai báo disk trả phí. Render Free PostgreSQL hết hạn sau 30 ngày và web ngủ sau 15 phút không truy cập. Dữ liệu dài hạn cần xuất/backup trước hạn.
+Xem docs/RENDER_DEPLOY_VI.md. render.yaml tạo một Web Service Free và dùng lại PostgreSQL qua DATABASE_URL; không tạo thêm database hoặc disk trả phí. Schema premii tách bảng của ứng dụng khỏi dữ liệu có sẵn. Render Free PostgreSQL hết hạn sau 30 ngày và web ngủ sau 15 phút không truy cập. Dữ liệu dài hạn cần xuất/backup trước hạn.
 
 Blueprint đã được người dùng báo deployed, nhưng phiên này chưa truy cập được tài khoản Render để xác nhận URL/service live. URL dashboard Blueprint không phải URL công khai của ứng dụng. Kết quả trong báo cáo là kiểm thử cục bộ; cần kiểm tra health của đúng URL Render sau khi Sync cấu hình mới.
 

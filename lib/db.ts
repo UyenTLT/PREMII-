@@ -48,9 +48,15 @@ function getSqlite() {
   }
 }
 async function getPostgres() {
+  const schema = process.env.DATABASE_SCHEMA;
+  if (schema && !/^[a-z_][a-z0-9_]{0,62}$/.test(schema))
+    throw Error(
+      "DATABASE_SCHEMA must be a simple lowercase PostgreSQL schema name",
+    );
   if (!postgres)
     postgres = new Pool({
       connectionString: process.env.DATABASE_URL,
+      options: schema ? `-c search_path=${schema}` : undefined,
       max: 5,
       connectionTimeoutMillis: 10000,
       idleTimeoutMillis: 30000,
@@ -62,6 +68,8 @@ async function getPostgres() {
       try {
         await client.query("SELECT pg_advisory_lock(197131001)");
         locked = true;
+        if (schema)
+          await client.query(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
         await client.query(
           readFileSync(
             join(process.cwd(), "migrations/postgres/001.sql"),
