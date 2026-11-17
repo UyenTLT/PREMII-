@@ -48,7 +48,7 @@ function render(){
 function download(content,type,ext){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=`premii-${new Date().toISOString().slice(0,10)}.${ext}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function exportRecords(){return records.map(({sourceText,...r})=>r);}
 $('#export-json').onclick=()=>download(JSON.stringify({instrument:'PREMII',totalScoreCalculated:false,mode:'file-only',records:exportRecords()},null,2),'application/json','json');
-$('#export-csv').onclick=()=>{const rows=exportRecords();const keys=[...new Set(rows.flatMap(Object.keys))];const esc=v=>'"'+(typeof v==='object'&&v!==null?JSON.stringify(v):String(v??'')).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';download('\uFEFF'+[keys,...rows.map(r=>keys.map(k=>r[k]))].map(row=>row.map(esc).join(',')).join('\r\n'),'text/csv;charset=utf-8','csv');};
+$('#export-csv').onclick=()=>{const rows=records;const keys=PREMII_FIELDS;const esc=v=>'"'+(typeof v==='object'&&v!==null?JSON.stringify(v):String(v??'')).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';download('\uFEFF'+[keys,...rows.map(r=>keys.map(k=>r[k]))].map(row=>row.map(esc).join(',')).join('\r\n'),'text/csv;charset=utf-8','csv');};
 window.addEventListener('beforeunload',e=>{if(records.length){e.preventDefault();e.returnValue='';}});
 window.addEventListener('languagechange',()=>{render();localizeDOM();$('#toast').textContent=translateText($('#toast').textContent);});
 render();localizeDOM();
