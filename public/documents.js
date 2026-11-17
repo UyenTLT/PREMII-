@@ -72,24 +72,69 @@ $('#source-file').addEventListener('change',e=>importDocuments([...e.target.file
 $('#clear-source').onclick=()=>{if(records.length&&!confirm(t('Clear all imported documents and extracted results?')))return;importGeneration++;records.splice(0);selectedRecordId=null;recordPage=0;lastImportSummary=null;importItems.splice(0);$('#source-file').disabled=false;$('#source-file').value='';$('#source-text').value='';$('#import-files').replaceChildren();$('#import-status').textContent='';$('#print-report').replaceChildren();render();};
 window.addEventListener('languagechange',()=>{if(lastImportSummary)renderImportStatus();else $('#import-status').textContent=translateText($('#import-status').textContent);importItems.forEach(renderImportItem);});
 function buildReport(){
- const report=$('#print-report');report.replaceChildren();const selected=activeRecord();if(!selected)return report;
- const r=selected;const shifts=Array(4).fill(null);shifts[r.shift?Number(r.shift)-1:0]=r;let pageNumber=0;
- function page(title){const p=node('article',undefined,'report-page');p.append(node('p',`PREMII™ · ${t('Infant ID')}: ${r.infant??t('Not found in source')} · ${r.date??t('Date not documented')}`,'report-header'),node('h2',t(title)));report.append(p);return p;}
- function finish(p){p.append(node('p',t('Original questionnaire: © 2018 Shire Human Genetic Therapies, Inc. PREMII is a trademark of Shire, a Takeda company.'),'report-footer'),node('p',`${t('Adapted research report — not the original licensed form.')} · ${t('Page')} ${++pageNumber} / 7`,'report-footer'));}
- function table(p){const table=node('table');const head=node('thead');const tr=node('tr');tr.append(node('th',t('Factors / levels')));for(let i=0;i<4;i++){const entry=shifts[i];let label=r.shift?`${t('Shift')} ${i+1}`:`${t('Observation')} ${i+1}`;label+='\n'+(entry?(entry.shift?`${entry.start??'—'}–${entry.end??'—'}`:t('Shift not documented')):t('No record'));tr.append(node('th',label));}head.append(tr);table.append(head);const body=node('tbody');table.append(body);p.append(table);return body;}
- function row(body,label,fn){const tr=node('tr');tr.append(node('td',t(label)));for(let i=0;i<4;i++)tr.append(node('td',shifts[i]?String(fn(shifts[i])??t('Not found in source')):''));body.append(tr);}
- function field(body,key,label=labels[key]){row(body,label,r=>fieldValue(r,key));}
- function levels(body,name,indices){for(const i of indices)row(body,options[name][i],r=>r[name]===null?missing(r,name):String(r[name])===String(i)?'☑':'☐');}
- let p=page('PREMature Infant Index Questionnaire');p.append(node('h1','PREMII™','cover-title'),node('p',t('Automatically extracted from the uploaded file. No manual data entry.')),node('p',`${r.filename} · ${t('Source line')} ${r.sourceLine}`),node('p',`${t('Source note timestamp')}: ${r.date??t('Date not documented')} ${r.noteTime??''}`),node('p',t('Missing items are not normal findings, zeros or negative responses.')),node('p',t('This report describes one source note. A dated note is not assumed to cover a complete shift.')),node('p',t('Automated extraction is unverified. Review the source evidence before clinical use.')));finish(p);
- p=page('Respiratory support');let body=table(p);levels(body,'RES1',[5,4,3,2]);field(body,'RES2');finish(p);
- p=page('Respiratory support');body=table(p);field(body,'RES3');field(body,'RES3_1');levels(body,'RES1',[1,0]);finish(p);
- p=page('Highest oxygen concentration');body=table(p);levels(body,'OA',[6,5,4,3,2,1]);field(body,'bradyThreshold');field(body,'desatThreshold');field(body,'ABD1_1');field(body,'ABD1_2');finish(p);
- p=page('Apnea, bradycardia & desaturation');body=table(p);for(const f of ['ABD2_1','ABD2_2','ABD3_1','ABD3_2','ABD4'])field(body,f);levels(body,'THG1',[3,2,1]);finish(p);
- p=page('Feeding');body=table(p);field(body,'fed');levels(body,'FEED1',[6,5,4,3,2,1]);finish(p);
- p=page('Weight');body=table(p);row(body,'First assessment',r=>r.first===null?missing(r,'first'):t(r.first==='on'?'Yes':'No'));row(body,'Baseline weight before first assessment',r=>r.baselineWeight===null?missing(r,'baselineWeight'):r.baselineWeight+' g');field(body,'weighed','Weighed during shift');field(body,'WEIGHT1');field(body,'WEIGHT2');field(body,'WEIGHT3');finish(p);
+ const report=$('#print-report');report.replaceChildren();const r=activeRecord();if(!r)return report;
+ const clip=(value,max)=>{const chars=Array.from(String(value??''));return chars.length>max?chars.slice(0,max-1).join('')+'…':chars.join('');};
+ const clinical=PREMII_FIELDS.filter(k=>!['infant','date','shift','start','end'].includes(k));
+ const snippets=new Map();
+ for(const field of clinical){const quote=r.evidence?.[field];if(quote){if(!snippets.has(quote))snippets.set(quote,[]);snippets.get(quote).push(field);}}
+ const denseSummary=clinical.filter(k=>r[k]!=null).length>12||Array.from(r.infant??'').length>60||Array.from(r.filename??'').length>90||(r.FEED1!=null&&t(options.FEED1[Number(r.FEED1)]).length>120);
+ const separateEvidence=snippets.size>4||(snippets.size>0&&denseSummary);
+ const totalPages=separateEvidence?2:1;
+ function page(title,pageNumber){
+  const sheet=node('article',undefined,'report-page compact-report');
+  const head=node('header',undefined,'pdf-header');const brand=node('div');brand.append(node('p','PREMII™','pdf-brand'),node('h1',t(title)));head.append(brand,node('span',`${pageNumber} / ${totalPages}`,'pdf-page-number'));sheet.append(head);
+  const meta=node('div',undefined,'pdf-meta');
+  for(const [label,value] of [
+   ['Infant / study ID',r.infant??t('Not documented')],['Source note timestamp',`${r.date??t('Date not documented')} ${r.noteTime??''}`],
+   ['Shift',r.shift?`${t('Shift')} ${r.shift}`:t('Shift not documented')],['Start time / end time',`${r.start??'—'} / ${r.end??'—'}`]
+  ]){const item=node('div');item.append(node('span',t(label)),node('strong',clip(value,70)));meta.append(item);}sheet.append(meta);
+  sheet.append(node('p',`${t('Source document')}: ${clip(r.filename,110)} · ${t('Source line')} ${r.sourceLine}`,'pdf-source'));
+  const content=node('div',undefined,'pdf-content');sheet.append(content);
+  const footer=node('footer',undefined,'pdf-footer');footer.append(node('span','PREMII™ · © 2018 Shire Human Genetic Therapies, Inc.'),node('span',t('Adapted research report · No total score')));sheet.append(footer);report.append(sheet);return content;
+ }
+ function value(field){
+  if(r[field]===null||r[field]===undefined||r[field]==='')return r.fieldStatus?.[field]==='not-applicable'?'N/A':r.fieldStatus?.[field]==='conflicting'?t('Conflict'):'—';
+  if(field==='first')return t(r.first==='on'?'Yes':'No');
+  if(field==='THG2')return t({'2':'Closed, heated incubator','1':'Radiant warmer'}[r[field]]??r[field]);
+  if(field==='FEED2')return t({'2':'Breast','1':'Bottle','both':'Both'}[r[field]]??r[field]);
+  return clip(fieldValue(r,field),210);
+ }
+ function section(parent,title){const block=node('section',undefined,'pdf-section');block.append(node('h2',t(title)));parent.append(block);return block;}
+ function rows(parent,items){const table=node('table',undefined,'pdf-values');const body=node('tbody');for(const [label,field,unit] of items){const row=node('tr');row.append(node('th',t(label)));const val=value(field);row.append(node('td',val+(unit&&r[field]!=null?' '+unit:'')));body.append(row);}table.append(body);parent.append(table);}
+ const first=page('Observation summary',1);
+ first.append(node('p',t('Automatically extracted · Unverified · One source note, not an assumed complete shift'),'pdf-status'));
+ const resp=section(first,'01 · Respiratory support & oxygen');
+ rows(resp,[['Respiratory support','RES1'],['Device','RES2'],['Flow source','RES3'],['Greatest flow','RES3_1','cc/min'],['Highest oxygen concentration','OA']]);
+ const pair=node('div',undefined,'pdf-pair');first.append(pair);
+ const thermal=section(pair,'02 · Thermoregulation');rows(thermal,[['Support','THG1'],['Warming device','THG2']]);
+ const feeding=section(pair,'03 · Feeding');rows(feeding,[['Feeds documented','fed'],['Feeding level','FEED1'],['Feeding method','FEED2']]);
+ const events=section(first,'04 · Apnea, bradycardia & desaturation');
+ const eventTable=node('table',undefined,'pdf-events');const eventHead=node('thead');const headings=node('tr');for(const label of ['Event','Required intervention','No intervention required'])headings.append(node('th',t(label)));eventHead.append(headings);eventTable.append(eventHead);const eventBody=node('tbody');
+ for(const [label,a,b] of [['Apnea','ABD1_1','ABD1_2'],['Bradycardia','ABD2_1','ABD2_2'],['Desaturation','ABD3_1','ABD3_2']]){const row=node('tr');row.append(node('th',t(label)),node('td',value(a)),node('td',value(b)));eventBody.append(row);}eventTable.append(eventBody);events.append(eventTable);
+ const eventNotes=node('div',undefined,'pdf-inline');
+ for(const [label,field,unit] of [['Bradycardia ≤','bradyThreshold','beats/min'],['Desaturation ≤','desatThreshold','%'],['Stimulant prescribed','ABD4',''],['Stimulant name','ABD4_1','']])eventNotes.append(node('span',`${t(label)}: ${value(field)}${unit&&r[field]!=null?' '+unit:''}`));events.append(eventNotes);
+ const weight=section(first,'05 · Weight');const weightTable=node('table',undefined,'pdf-weights');const wh=node('thead'),whr=node('tr');for(const label of ['Measurement','Weight (g)','Date','Time'])whr.append(node('th',t(label)));wh.append(whr);weightTable.append(wh);const wb=node('tbody');
+ for(const [label,keys] of [['Before first assessment',['baselineWeight','baselineDate','baselineTime']],['Lowest documented in this note',['WEIGHT1','WEIGHT2','WEIGHT3']]]){const row=node('tr');row.append(node('th',t(label)),...keys.map(k=>node('td',value(k))));wb.append(row);}weightTable.append(wb);weight.append(weightTable);
+ const weightNotes=node('div',undefined,'pdf-inline');weightNotes.append(node('span',`${t('First assessment')}: ${value('first')}`),node('span',`${t('Weighed during shift')}: ${value('weighed')}`));weight.append(weightNotes);
+ first.append(node('p',t('Legend: — Not found in source · N/A Not applicable · Conflict Unresolved source values. Missing is not normal, zero or No.'),'pdf-legend'));
+ first.append(node('p',t('Only the recorded response is shown. Item codes in brackets are not a validated total score. Source note times are not shift boundaries.'),'pdf-note'));
+ if(snippets.size){
+  const second=separateEvidence?page('Source evidence & interpretation',2):first;
+  const evidenceSection=section(second,'Source evidence');evidenceSection.append(node('p',t('Short source excerpts supporting the selected observation. Original language is preserved.'),'pdf-note'));
+  const limit=separateEvidence?8:4;
+  const table=node('table',undefined,'pdf-evidence');const head=node('thead'),tr=node('tr');for(const label of ['PREMII fields','Source excerpt'])tr.append(node('th',t(label)));head.append(tr);table.append(head);const body=node('tbody');
+  for(const [quote,fields] of [...snippets].slice(0,limit)){const row=node('tr');row.append(node('th',clip(fields.join(', '),45)),node('td',clip(quote.replace(/\s+/g,' '),separateEvidence?120:90)));body.append(row);}table.append(body);evidenceSection.append(table);
+  if(snippets.size>limit)second.append(node('p',`${snippets.size-limit} ${t('additional excerpts are available in JSON export.')}`,'pdf-note'));
+  if(separateEvidence){const notes=section(second,'Interpretation notes');const list=node('ul');for(const text of [
+   'Automatic extraction has not been clinically verified. Review the original source before clinical use.',
+   'Missing dates, times and shift assignments are left undocumented. No event count is assumed to be zero.',
+   'Some excerpts are shortened for this compact report. Full extraction evidence and field statuses remain in JSON export.',
+   'This is an adapted research summary, not the original licensed PREMII questionnaire. No diagnostic recommendation or total score is generated.'
+  ])list.append(node('li',t(text)));notes.append(list);}
+ }
  return report;
 }
-$('#export-pdf').onclick=()=>{if(!activeRecord())return;buildReport();notify(t('In the print dialog, choose Save as PDF. The report uses the source questionnaire’s sections and four-shift columns.'));window.print();};
+$('#export-pdf').onclick=()=>{if(!activeRecord())return;buildReport();notify(t('Choose Save as PDF in the print dialog. The compact report uses one or two A4 pages.'));window.print();};
 
 $('#source-file').disabled=false;
 $('#startup-warning').hidden=true;
