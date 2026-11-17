@@ -2,6 +2,8 @@
 const $=s=>document.querySelector(s);
 const records=[];
 let selectedRecordId=null;
+let recordPage=0;
+const RECORDS_PER_PAGE=20;
 const options = {
  RES1: ["No supplemental oxygen and no pulmonary medication","Supplemental oxygen, not continuously, or pulmonary medication","Continuous low-flow nasal cannula (< 2 L/min)","Continuous supplemental oxygen, not through a nasal cannula","Respiratory pressure support (nCPAP or high flow ≥ 2 L/min)","Mechanical ventilation via endotracheal tube, tracheostomy tube or mask"],
  OA: [null,"21% · Room air",'22–30%','31–40%','41–50%','51–60%','≥ 61%'],
@@ -22,11 +24,18 @@ function notify(message){$('#toast').textContent=message;$('#toast').classList.a
 function render(){
  $('#record-count').textContent=records.length;$('#empty-state').hidden=!!records.length;$('#results-section').hidden=!records.length;
  for(const id of ['export-json','export-csv','export-pdf'])$('#'+id).disabled=!records.length;
+ $('#output-ready').hidden=!records.length;
+ const infantCount=new Set(records.filter(r=>r.infant!==null).map(r=>r.infant)).size;
+ $('#output-summary').textContent=`${records.length} ${t('observations')} · ${infantCount} ${t('infants')}`;
+ recordPage=Math.min(recordPage,Math.max(0,Math.ceil(records.length/RECORDS_PER_PAGE)-1));
+ $('#record-pagination').hidden=records.length<=RECORDS_PER_PAGE;
+ $('#previous-page').disabled=recordPage===0;$('#next-page').disabled=(recordPage+1)*RECORDS_PER_PAGE>=records.length;
+ $('#page-summary').textContent=`${t('Page')} ${recordPage+1} / ${Math.max(1,Math.ceil(records.length/RECORDS_PER_PAGE))} · ${records.length} ${t('observations')}`;
  const body=$('#records-table tbody');body.replaceChildren();
- for(const r of records){const row=document.createElement('tr');row.className=r.recordId===selectedRecordId?'selected-record':'';const view=node('button',t('View source results'),'secondary');view.type='button';view.onclick=()=>{selectedRecordId=r.recordId;render();$('#results-section').scrollIntoView({behavior:'smooth'});};
+ for(const r of records.slice(recordPage*RECORDS_PER_PAGE,(recordPage+1)*RECORDS_PER_PAGE)){const row=document.createElement('tr');row.className=r.recordId===selectedRecordId?'selected-record':'';const view=node('button',t('View source results'),'secondary');view.type='button';view.onclick=()=>{selectedRecordId=r.recordId;render();$('#results-section').scrollIntoView({behavior:'smooth'});};
   for(const value of [r.infant??t('Not found in source'),r.date??t('Date not documented'),r.shift?`${t('Shift')} ${r.shift}`:t('Shift not documented'),Object.keys(labels).filter(k=>r[k]!==null&&r[k]!==undefined).length+' / '+Object.keys(labels).length])row.append(node('td',value));const td=node('td');td.append(view);row.append(td);body.append(row);
  }
- const r=activeRecord();if(!r)return;
+ const r=activeRecord();if(!r){$('#selected-note').textContent='';$('#source-context').textContent='';$('#source-text').value='';$('#extracted-fields').replaceChildren();return;}
  $('#selected-note').textContent=`${r.infant??t('Infant ID not documented')} · ${r.date??t('Date not documented')} ${r.noteTime??''}`;
  $('#source-context').textContent=`${r.filename} · ${t('Source line')} ${r.sourceLine} · ${r.shift?`${t('Shift')} ${r.shift}`:t('Shift not documented')}`;
  $('#source-text').value=r.sourceText;
@@ -43,3 +52,9 @@ $('#export-csv').onclick=()=>{const rows=exportRecords();const keys=[...new Set(
 window.addEventListener('beforeunload',e=>{if(records.length){e.preventDefault();e.returnValue='';}});
 window.addEventListener('languagechange',()=>{render();localizeDOM();$('#toast').textContent=translateText($('#toast').textContent);});
 render();localizeDOM();
+
+$('#show-results').onclick=()=>$('#results-section').scrollIntoView({behavior:'smooth',block:'start'});
+$('#quick-export-pdf').onclick=()=>$('#export-pdf').click();
+$('#quick-export-csv').onclick=()=>$('#export-csv').click();
+$('#previous-page').onclick=()=>{recordPage--;render();$('#records').scrollIntoView({block:'start'});};
+$('#next-page').onclick=()=>{recordPage++;render();$('#records').scrollIntoView({block:'start'});};

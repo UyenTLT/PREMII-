@@ -231,6 +231,8 @@ Object.assign(translations, {
   "Automated extraction is unverified. Review the source evidence before clinical use.": "自動擷取尚未經驗證。臨床使用前請檢視來源依據。"
 });
 Object.assign(translations, {"Template detected. Upload patient records, not a blank PREMII questionnaire.":"偵測到問卷範本。請上傳病歷資料，而非空白 PREMII 問卷。"});
+Object.assign(translations, {"Results ready": "結果已就緒", "View results": "查看結果", "Browse all observations": "瀏覽所有觀察記錄", "PDF opens the print dialog. Choose Save as PDF to download the report.": "PDF 會開啟列印對話框。請選擇另存為 PDF 下載報告。", "Previous page": "上一頁", "Next page": "下一頁", "observations": "筆觀察記錄", "infants": "名嬰兒", "files imported": "個檔案已匯入", "files failed": "個檔案失敗", "No output was generated. Check the file errors above and try another supported document.": "未產生結果。請檢查上方檔案錯誤並嘗試其他支援的文件。", "Results are ready below. View the extracted fields or export the report.": "下方結果已就緒。請查看擷取欄位或匯出報告。", "Scroll through the fields below to inspect all extracted values and source evidence.": "請捲動下方欄位以檢視所有擷取值與來源依據。"});
+Object.assign(translations, {"Preparing document import. If this message remains, reload the page.":"正在準備文件匯入。如持續顯示此訊息，請重新載入頁面。"});
 const reverseTranslations = new Map(Object.entries(translations).map(([en,zh])=>[zh,en]));
 let language='en';
 try { if(localStorage.getItem('premii-language')==='zh-Hant') language='zh-Hant'; } catch {}

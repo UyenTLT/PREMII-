@@ -42,10 +42,16 @@ With Playwright and Chromium available, start the local server and run `node tes
 
 ## Hosting
 
-Render uses render.yaml and builds the main branch, publishing only public/. The public service is https://premii-workspace.onrender.com . GitHub Pages is https://uyentlt.github.io/PREMII-/ ; after committing public/ changes, `bash scripts/deploy-pages.sh` publishes the committed static assets to gh-pages. Medical examples, original uploaded source documents and exported assessments must never be added to public/ or Git.
+This legacy static site uses render.yaml on branch fix/legacy-import-results, publishing only public/. The repository main branch now contains a separate Next.js Tracker application; do not point this static service at main. The public service is https://premii-workspace.onrender.com . GitHub Pages is https://uyentlt.github.io/PREMII-/ ; after committing public/ changes, `bash scripts/deploy-pages.sh` publishes the committed static assets to gh-pages. Medical examples, original uploaded source documents and exported assessments must never be added to public/ or Git.
 
 [Deploy on Render](https://render.com/deploy?repo=https://github.com/UyenTLT/PREMII-)
 
 ## Sources and attribution
 
 Based on the supplied English PREMature Infant Index Questionnaire and the item-code document “PREMII 建立資料用”. © 2018 Shire Human Genetic Therapies, Inc. PREMII is a trademark of Shire, a Takeda company. The original questionnaire states reproduction permission from Shire; this project does not assert independent distribution permission or clinical certification. The report is adapted, not a pixel-identical or licensed original form. Mammoth/PDF.js licenses are in public/vendor.
+
+## Import result visibility
+
+Successful imports show a Results ready panel with the observation/infant counts, direct View results/PDF/CSV actions, and an automatic scroll to the output. Selected results appear before the observation list, with a bounded scrollable evidence panel. The list shows 20 records/page and Previous/Next controls. Failed imports remain explicit and never report a successful output. Assets have a release query to prevent mixed cached script versions, and upload is disabled until document-import scripts initialize.
+
+`node tests/import-batch-browser.cjs` checks a synthetic 65-record batch, pagination, visible output, exports and failed uploads. You can pass private TXT files as command arguments with independently known PREMII_EXPECTED_RECORDS and PREMII_EXPECTED_INFANTS counts; source files and generated artifacts must stay outside this checkout.

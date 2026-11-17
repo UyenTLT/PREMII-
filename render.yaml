@@ -2,7 +2,7 @@ services:
   - type: web
     name: premii-workspace
     runtime: static
-    branch: main
+    branch: fix/legacy-import-results
     buildCommand: npm ci --ignore-scripts --no-audit --no-fund && npm run build
     staticPublishPath: ./public
     envVars:

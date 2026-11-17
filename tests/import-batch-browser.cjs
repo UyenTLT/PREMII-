@@ -1,0 +1,28 @@
+const {chromium}=require('playwright');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+// Optional private input files are passed at runtime, never committed as fixtures.
+(async()=>{const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});try{
+ const page=await browser.newPage({viewport:{width:1280,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(process.env.PREMII_TEST_URL||'http://127.0.0.1:3000');
+ const files=process.argv.slice(2);const count=files.length?Number(process.env.PREMII_EXPECTED_RECORDS):65;const infantCount=files.length?Number(process.env.PREMII_EXPECTED_INFANTS):65;assert.ok(Number.isInteger(count)&&count>0,'Set PREMII_EXPECTED_RECORDS for private inputs');assert.ok(Number.isInteger(infantCount)&&infantCount>0,'Set PREMII_EXPECTED_INFANTS for private inputs');
+ const fixture=Array.from({length:65},(_,i)=>`【研究ID：TEST-${String(i+1).padStart(3,'0')}】\nDate: 2026-11-03\nOn nCPAP\nFiO2: 35%\nWeight: 1200 g`).join('\n');
+ await page.setInputFiles('#source-file',files.length?files:{name:'batch.txt',mimeType:'text/plain',buffer:Buffer.from(fixture)});
+ await page.waitForFunction(()=>!document.querySelector('#source-file').disabled,{},{timeout:120000});
+ assert.equal(await page.locator('#record-count').innerText(),String(count));assert.equal(await page.locator('#records-table tbody tr').count(),20);assert.equal(await page.locator('#output-ready').isVisible(),true);assert.match(await page.locator('#output-summary').innerText(),new RegExp(String(count)));assert.equal(await page.locator('#quick-export-pdf').isEnabled(),true);
+ assert.equal(await page.locator('#results-section').evaluate(el=>el.compareDocumentPosition(document.querySelector('#records'))&Node.DOCUMENT_POSITION_FOLLOWING),4);
+ await page.waitForTimeout(500);const outputY=await page.locator('#output-ready').evaluate(el=>el.getBoundingClientRect().top);assert.ok(outputY>-200&&outputY<500,`outputY=${outputY}`);
+ await page.click('#next-page');assert.match(await page.locator('#page-summary').innerText(),/2 \/ /);assert.equal(await page.locator('#records-table tbody tr').count(),20);await page.locator('#records-table tbody tr').first().getByRole('button').click();assert.equal(await page.locator('#results-section').isVisible(),true);
+ const out=process.env.PREMII_ARTIFACT_DIR||'/tmp';fs.mkdirSync(out,{recursive:true});const download=page.waitForEvent('download');await page.click('#quick-export-csv');await(await download).saveAs(out+'/premii-import-results.csv');assert.ok(fs.statSync(out+'/premii-import-results.csv').size>1000);
+ await page.evaluate(()=>window.print=()=>{});await page.click('#quick-export-pdf');assert.equal(await page.locator('.report-page').count(),7);await page.pdf({path:out+'/premii-sample-report.pdf',preferCSSPageSize:true});
+ const jsonDownload=page.waitForEvent('download');await page.click('#export-json');await(await jsonDownload).saveAs(out+'/premii-import-results.json');const data=JSON.parse(fs.readFileSync(out+'/premii-import-results.json'));assert.equal(data.records.length,count);
+ assert.equal(new Set(data.records.map(r=>r.infant)).size,infantCount);
+ await page.selectOption('#language','zh-Hant');assert.match(await page.locator('#output-summary').innerText(),/筆觀察記錄/);assert.match(await page.locator('#next-page').innerText(),/下一頁/);assert.equal(await page.locator('#records-table tbody tr').count(),20);
+ await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await page.click('#show-results');await page.waitForTimeout(500);await page.screenshot({path:out+'/premii-import-results-mobile.png'});assert.deepEqual(errors,[]);
+ // A later upload must show its own output, not keep an earlier selected observation.
+ await page.setInputFiles('#source-file',{name:'appended.txt',mimeType:'text/plain',buffer:Buffer.from('Study ID: APPEND-TEST\nOn nCPAP')});await page.waitForFunction(()=>!document.querySelector('#source-file').disabled);assert.match(await page.locator('#selected-note').innerText(),/APPEND-TEST/);assert.equal(await page.locator('#next-page').isDisabled(),true);
+ // Clear, then verify an all-failed import never reports success or enables exports.
+ page.on('dialog',d=>d.accept());await page.click('#clear-source');await page.setInputFiles('#source-file',{name:'bad.bin',mimeType:'application/octet-stream',buffer:Buffer.from('invalid')});await page.waitForFunction(()=>!document.querySelector('#source-file').disabled);assert.equal(await page.locator('#output-ready').isVisible(),false);assert.equal(await page.locator('#export-pdf').isDisabled(),true);assert.match(await page.locator('#import-status').innerText(),/未產生結果/);
+ const broken=await browser.newPage();await broken.route('**/documents.js*',route=>route.abort());await broken.goto(process.env.PREMII_TEST_URL||'http://127.0.0.1:3000');assert.equal(await broken.locator('#source-file').isDisabled(),true);assert.equal(await broken.locator('#startup-warning').isVisible(),true);await broken.close();
+ console.log(JSON.stringify({passed:true,importedRecords:count,infants:infantCount,rowsPerPage:20,outputVisible:true,exports:['CSV','JSON','PDF'],uncaughtErrors:errors.length}));
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1)});

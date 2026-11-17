@@ -2,6 +2,16 @@
 let importGeneration=0;
 let fileSequence=0;
 let pdfReader;
+let lastImportSummary=null;
+const importItems=[];
+function renderImportItem(row){
+ row.item.textContent=row.filename+' — '+(row.error?t(row.error):row.count===null?t('Reading document…'):row.count+' '+t('observations extracted'));
+}
+function renderImportStatus(){
+ if(!lastImportSummary)return;
+ const {succeeded,added,failed}=lastImportSummary;
+ $('#import-status').textContent=added?`${succeeded} ${t('files imported')} · ${added} ${t('observations')} · ${failed} ${t('files failed')}`:t('No output was generated. Check the file errors above and try another supported document.');
+}
 async function readDocument(file){
  if(file.size>10*1024*1024||! /\.(txt|docx|pdf)$/i.test(file.name))throw new Error('Choose a TXT, DOCX or PDF file up to 10 MB.');
  let text='';
@@ -16,19 +26,51 @@ async function readDocument(file){
  if(text.length>2000000)throw new Error('Document text limit exceeded.');
  return text;
 }
-$('#source-file').addEventListener('change',async e=>{
- const files=[...e.target.files];if(!files.length)return;
- const generation=++importGeneration;$('#source-file').disabled=true;$('#import-status').textContent=t('Reading and extracting documents…');
+const importErrors={
+ template:'Template detected. Upload patient records, not a blank PREMII questionnaire.',
+ unsupported:'Choose a TXT, DOCX or PDF file up to 10 MB.',
+ empty:'No readable text found. Scanned PDFs need OCR first.',
+ pages:'PDF page limit exceeded.',text:'Document text limit exceeded.',
+ count:'Too many observations. Use smaller document batches.'
+};
+async function importDocuments(files){
+ if(!files.length)return;
+ const generation=++importGeneration;const startCount=records.length;lastImportSummary=null;
+ let succeeded=0,failed=0,firstNewRecordId=null;
+ $('#source-file').disabled=true;$('#import-status').textContent=t('Reading and extracting documents…');
  try{
-  for(const file of files){const item=node('li',file.name+' — '+t('Reading document…'));$('#import-files').append(item);
-   try{const text=await readDocument(file);if(generation!==importGeneration)return;if(isQuestionnaireTemplate(text))throw new Error('Template detected. Upload patient records, not a blank PREMII questionnaire.');const extracted=extractFileRecords(text,file.name,`file-${++fileSequence}`);if(records.length+extracted.length>3000)throw new Error('Too many observations. Use smaller document batches.');records.push(...extracted);selectedRecordId??=extracted[0]?.recordId??null;item.textContent=file.name+' — '+extracted.length+' '+t('observations extracted');render();}
-   catch(error){if(generation!==importGeneration)return;const known=['Template detected. Upload patient records, not a blank PREMII questionnaire.','Choose a TXT, DOCX or PDF file up to 10 MB.','No readable text found. Scanned PDFs need OCR first.','PDF page limit exceeded.','Document text limit exceeded.','Too many observations. Use smaller document batches.'];item.textContent=file.name+' — '+t(known.includes(error.message)?error.message:'Unable to read this document. Check the format, encryption and file integrity.');}
+  for(const file of files){
+   if(generation!==importGeneration)return;
+   const item=node('li');const row={item,filename:file.name,count:null,error:null};importItems.push(row);renderImportItem(row);$('#import-files').append(item);
+   // Yield a frame so status changes are painted before processing a large file.
+   await new Promise(resolve=>setTimeout(resolve,0));
+   try{
+    const text=await readDocument(file);if(generation!==importGeneration)return;
+    if(isQuestionnaireTemplate(text))throw new Error(importErrors.template);
+    const extracted=extractFileRecords(text,file.name,`file-${++fileSequence}`);
+    if(!extracted.length)throw new Error(importErrors.empty);
+    if(records.length+extracted.length>3000)throw new Error(importErrors.count);
+    // Avoid spreading a large batch into function arguments.
+    for(const record of extracted)records.push(record);
+    firstNewRecordId??=extracted[0]?.recordId??null;succeeded++;
+    row.count=extracted.length;renderImportItem(row);
+   }catch(error){
+    if(generation!==importGeneration)return;
+    failed++;item.classList.add('import-error');
+    row.error=Object.values(importErrors).includes(error.message)?error.message:'Unable to read this document. Check the format, encryption and file integrity.';renderImportItem(row);
+   }
   }
-  if(generation===importGeneration)$('#import-status').textContent=t('Extraction finished. Results contain only supported source observations; missing values remain undocumented.');
+  if(generation!==importGeneration)return;
+  if(firstNewRecordId){selectedRecordId=firstNewRecordId;recordPage=Math.floor(records.findIndex(r=>r.recordId===firstNewRecordId)/RECORDS_PER_PAGE);}
+  render();
+  const added=records.length-startCount;
+  lastImportSummary={succeeded,added,failed};renderImportStatus();
+  if(added){$('#output-ready').scrollIntoView({behavior:'smooth',block:'start'});notify(t('Results are ready below. View the extracted fields or export the report.'));}
  }finally{if(generation===importGeneration){$('#source-file').disabled=false;$('#source-file').value='';}}
-});
-$('#clear-source').onclick=()=>{if(records.length&&!confirm(t('Clear all imported documents and extracted results?')))return;importGeneration++;records.splice(0);selectedRecordId=null;$('#source-file').disabled=false;$('#source-file').value='';$('#source-text').value='';$('#import-files').replaceChildren();$('#import-status').textContent='';$('#print-report').replaceChildren();render();};
-window.addEventListener('languagechange',()=>{$('#import-status').textContent=translateText($('#import-status').textContent);});
+}
+$('#source-file').addEventListener('change',e=>importDocuments([...e.target.files]));
+$('#clear-source').onclick=()=>{if(records.length&&!confirm(t('Clear all imported documents and extracted results?')))return;importGeneration++;records.splice(0);selectedRecordId=null;recordPage=0;lastImportSummary=null;importItems.splice(0);$('#source-file').disabled=false;$('#source-file').value='';$('#source-text').value='';$('#import-files').replaceChildren();$('#import-status').textContent='';$('#print-report').replaceChildren();render();};
+window.addEventListener('languagechange',()=>{if(lastImportSummary)renderImportStatus();else $('#import-status').textContent=translateText($('#import-status').textContent);importItems.forEach(renderImportItem);});
 function buildReport(){
  const report=$('#print-report');report.replaceChildren();const selected=activeRecord();if(!selected)return report;
  const r=selected;const shifts=Array(4).fill(null);shifts[r.shift?Number(r.shift)-1:0]=r;let pageNumber=0;
@@ -48,3 +90,6 @@ function buildReport(){
  return report;
 }
 $('#export-pdf').onclick=()=>{if(!activeRecord())return;buildReport();notify(t('In the print dialog, choose Save as PDF. The report uses the source questionnaire’s sections and four-shift columns.'));window.print();};
+
+$('#source-file').disabled=false;
+$('#startup-warning').hidden=true;
