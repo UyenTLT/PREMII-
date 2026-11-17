@@ -3,6 +3,7 @@ const $=s=>document.querySelector(s);
 const records=[];
 let selectedRecordId=null;
 let recordPage=0;
+let exportingExcel=false;
 const RECORDS_PER_PAGE=20;
 const options = {
  RES1: ["No supplemental oxygen and no pulmonary medication","Supplemental oxygen, not continuously, or pulmonary medication","Continuous low-flow nasal cannula (< 2 L/min)","Continuous supplemental oxygen, not through a nasal cannula","Respiratory pressure support (nCPAP or high flow ≥ 2 L/min)","Mechanical ventilation via endotracheal tube, tracheostomy tube or mask"],
@@ -23,8 +24,9 @@ function activeRecord(){return records.find(r=>r.recordId===selectedRecordId);}
 function notify(message){$('#toast').textContent=message;$('#toast').classList.add('visible');setTimeout(()=>$('#toast').classList.remove('visible'),5000);}
 function render(){
  $('#record-count').textContent=records.length;$('#empty-state').hidden=!!records.length;$('#results-section').hidden=!records.length;
- for(const id of ['export-json','export-csv','export-pdf'])$('#'+id).disabled=!records.length;
+ for(const id of ['export-json','export-csv','export-pdf','export-excel','quick-export-excel'])$('#'+id).disabled=!records.length;
  $('#output-ready').hidden=!records.length;
+ for(const id of ['export-excel','quick-export-excel']){$('#'+id).disabled=!records.length||exportingExcel;$('#'+id).textContent=t(exportingExcel?'Creating Excel…':'Export Excel (.xlsx)');}
  const infantCount=new Set(records.filter(r=>r.infant!==null).map(r=>r.infant)).size;
  $('#output-summary').textContent=`${records.length} ${t('observations')} · ${infantCount} ${t('infants')}`;
  recordPage=Math.min(recordPage,Math.max(0,Math.ceil(records.length/RECORDS_PER_PAGE)-1));
@@ -58,3 +60,12 @@ $('#quick-export-pdf').onclick=()=>$('#export-pdf').click();
 $('#quick-export-csv').onclick=()=>$('#export-csv').click();
 $('#previous-page').onclick=()=>{recordPage--;render();$('#records').scrollIntoView({block:'start'});};
 $('#next-page').onclick=()=>{recordPage++;render();$('#records').scrollIntoView({block:'start'});};
+
+$('#export-excel').onclick=async()=>{
+ if(!records.length||exportingExcel)return;
+ exportingExcel=true;render();
+ try{const workbook=await createPremiiWorkbook(records);download(workbook,PREMII_XLSX_TYPE,'xlsx');}
+ catch{notify(t('Excel export failed. Please try again.'));}
+ finally{exportingExcel=false;render();}
+};
+$('#quick-export-excel').onclick=()=>$('#export-excel').click();

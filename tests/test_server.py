@@ -31,7 +31,7 @@ class ServerSmokeTest(unittest.TestCase):
             self.assertNotIn('<form', html)
             self.assertIn('No manual data entry.', html)
             self.assertIn("frame-ancestors 'none'", r.headers['Content-Security-Policy'])
-        for path, marker in [('documents.js', 'buildReport'), ('suggestions.js', 'extractSuggestions'), ('i18n.js', 'zh-Hant'), ('extraction.js', 'schemaVersion'), ('app.js', 'exportRecords'), ('style.css', '.sidebar')]:
+        for path, marker in [('spreadsheet.js', 'createPremiiWorkbook'), ('documents.js', 'buildReport'), ('suggestions.js', 'extractSuggestions'), ('i18n.js', 'zh-Hant'), ('extraction.js', 'schemaVersion'), ('app.js', 'exportRecords'), ('style.css', '.sidebar')]:
             with self.subTest(path=path), urlopen('http://127.0.0.1:3099/' + path) as r:
                 self.assertEqual(r.status, 200)
                 self.assertIn(marker, r.read().decode())

@@ -14,7 +14,22 @@ const fs=require('node:fs');
  await page.click('#next-page');assert.match(await page.locator('#page-summary').innerText(),/2 \/ /);assert.equal(await page.locator('#records-table tbody tr').count(),20);await page.locator('#records-table tbody tr').first().getByRole('button').click();assert.equal(await page.locator('#results-section').isVisible(),true);
  const out=process.env.PREMII_ARTIFACT_DIR||'/tmp';fs.mkdirSync(out,{recursive:true});const download=page.waitForEvent('download');await page.click('#quick-export-csv');await(await download).saveAs(out+'/premii-import-results.csv');assert.ok(fs.statSync(out+'/premii-import-results.csv').size>1000);const header=fs.readFileSync(out+'/premii-import-results.csv','utf8').replace(/^\uFEFF/,'').split(/\r?\n/)[0].split(',').map(v=>v.slice(1,-1));assert.equal(header.length,33);assert.equal(header[0],'infant');assert.equal(header.at(-1),'WEIGHT3');for(const metadata of ['recordId','patientKey','noteTime','filename','sourceLine','extractionStatus','schemaVersion','evidence','fieldStatus'])assert.equal(header.includes(metadata),false);
  await page.evaluate(()=>window.print=()=>{});await page.click('#quick-export-pdf');assert.ok([1,2].includes(await page.locator('.report-page').count()));await page.pdf({path:out+'/premii-sample-report.pdf',preferCSSPageSize:true});
- const jsonDownload=page.waitForEvent('download');await page.click('#export-json');await(await jsonDownload).saveAs(out+'/premii-import-results.json');const data=JSON.parse(fs.readFileSync(out+'/premii-import-results.json'));assert.equal(data.records.length,count);
+ const jsonDownload=page.waitForEvent('download');await page.click('#export-json');await(await jsonDownload).saveAs(out+'/premii-import-results.json');const data=JSON.parse(fs.readFileSync(out+'/premii-import-results.json'));assert.equal(data.records.length,count);const excelDownload=page.waitForEvent('download');await page.click('#quick-export-excel');await(await excelDownload).saveAs(out+'/premii-import-results.xlsx');
+ require('node:child_process').execFileSync('python3',['-c',`import sys,json,openpyxl
+sheet=openpyxl.load_workbook(sys.argv[1],data_only=False)['PREMII']
+records=json.load(open(sys.argv[2]))['records']
+assert sheet.max_column==33 and sheet.max_row==len(records)+1
+headers=[c.value for c in sheet[1]]
+assert headers[0]=='infant' and headers[-1]=='WEIGHT3'
+assert sheet.freeze_panes=='A2'
+for cells,record in zip(sheet.iter_rows(min_row=2),records):
+ for cell,key in zip(cells,headers):
+  actual,expected=cell.value,record[key]
+  assert cell.data_type!='f'
+  if expected is None: assert actual is None
+  elif isinstance(actual,(int,float)): assert actual==float(expected) and key!='infant'
+  else: assert actual==str(expected)
+`,out+'/premii-import-results.xlsx',out+'/premii-import-results.json']);
  assert.equal(new Set(data.records.map(r=>r.infant)).size,infantCount);
  await page.selectOption('#language','zh-Hant');await page.click('#quick-export-pdf');await page.pdf({path:out+'/premii-sample-report-zh.pdf',preferCSSPageSize:true});assert.match(await page.locator('#output-summary').innerText(),/筆觀察記錄/);assert.match(await page.locator('#next-page').innerText(),/下一頁/);assert.equal(await page.locator('#records-table tbody tr').count(),20);
  await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
@@ -24,5 +39,5 @@ const fs=require('node:fs');
  // Clear, then verify an all-failed import never reports success or enables exports.
  page.on('dialog',d=>d.accept());await page.click('#clear-source');await page.setInputFiles('#source-file',{name:'bad.bin',mimeType:'application/octet-stream',buffer:Buffer.from('invalid')});await page.waitForFunction(()=>!document.querySelector('#source-file').disabled);assert.equal(await page.locator('#output-ready').isVisible(),false);assert.equal(await page.locator('#export-pdf').isDisabled(),true);assert.match(await page.locator('#import-status').innerText(),/未產生結果/);
  const broken=await browser.newPage();await broken.route('**/documents.js*',route=>route.abort());await broken.goto(process.env.PREMII_TEST_URL||'http://127.0.0.1:3000');assert.equal(await broken.locator('#source-file').isDisabled(),true);assert.equal(await broken.locator('#startup-warning').isVisible(),true);await broken.close();
- console.log(JSON.stringify({passed:true,importedRecords:count,infants:infantCount,rowsPerPage:20,outputVisible:true,exports:['CSV','JSON','PDF'],uncaughtErrors:errors.length}));
+ console.log(JSON.stringify({passed:true,importedRecords:count,infants:infantCount,rowsPerPage:20,outputVisible:true,exports:['Excel','CSV','JSON','PDF'],uncaughtErrors:errors.length}));
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1)});

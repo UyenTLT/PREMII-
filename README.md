@@ -1,6 +1,6 @@
 # PREMII file-only workspace
 
-English / Traditional Chinese website for extracting documented PREMII observations from uploaded medical records. There is **no manual assessment form**. The workflow is upload → automatic extraction → inspect read-only evidence → export PDF/JSON/CSV.
+English / Traditional Chinese website for extracting documented PREMII observations from uploaded medical records. There is **no manual assessment form**. The workflow is upload → automatic extraction → inspect read-only evidence → export PDF/Excel/JSON/CSV.
 
 ## Run and build
 
@@ -28,7 +28,7 @@ No database, API credentials or external inference service is required by the we
 - **View source results** selects a source note to inspect, without entering or completing data. Results and the source text are read-only. There is no Save assessment step; records are created automatically during import.
 - **Export selected PDF** opens the browser print dialog; choose Save as PDF, A4, with browser headers/footers disabled. The compact report uses one or two pages: a clinical summary grouped into respiratory/oxygen support, thermoregulation, feeding, ABD events and weight, then source evidence on page two for dense summaries or more than four unique excerpts. Missing values, not-applicable fields and conflicts are explicitly distinguished by the legend. Only the recorded choices are listed. A maximum of eight shortened excerpts is printed; full evidence remains in JSON. One selected source note is exported, with its source timestamp and any explicit shift boundaries. No shift is inferred.
 
-- CSV exports all observations with only the 33 PREMII clinical fields in columns A–AG. It excludes internal IDs, filenames, source offsets, extraction status, schema versions, evidence and missingness metadata. JSON retains that audit metadata separately. Complete original note text is excluded from exports, but evidence excerpts can contain health data. Save exports securely. Session data disappears on refresh/close. Only the interface language preference persists in local storage.
+- Excel (.xlsx) and CSV export all observations with only the 33 PREMII clinical fields in columns A–AG. It excludes internal IDs, filenames, source offsets, extraction status, schema versions, evidence and missingness metadata. JSON retains that audit metadata separately. Complete original note text is excluded from exports, but evidence excerpts can contain health data. Save exports securely. Session data disappears on refresh/close. Only the interface language preference persists in local storage.
 
 These reports are source-note summaries. Without documented shift boundaries, they are **not validated per-shift PREMII measurements**. No validated total-score algorithm was supplied; the app does not calculate a total. Translation and extraction require clinical review. There are no accounts, persistent clinical storage, cross-visitor shared records or multi-user synchronization.
 
@@ -49,12 +49,18 @@ This legacy static site uses render.yaml on branch fix/legacy-import-results, pu
 
 ## Sources and attribution
 
-Based on the supplied English PREMature Infant Index Questionnaire and the item-code document “PREMII 建立資料用”. © 2018 Shire Human Genetic Therapies, Inc. PREMII is a trademark of Shire, a Takeda company. The original questionnaire states reproduction permission from Shire; this project does not assert independent distribution permission or clinical certification. The report is adapted, not a pixel-identical or licensed original form. Mammoth/PDF.js licenses are in public/vendor.
+Based on the supplied English PREMature Infant Index Questionnaire and the item-code document “PREMII 建立資料用”. © 2018 Shire Human Genetic Therapies, Inc. PREMII is a trademark of Shire, a Takeda company. The original questionnaire states reproduction permission from Shire; this project does not assert independent distribution permission or clinical certification. The report is adapted, not a pixel-identical or licensed original form. Mammoth/PDF.js/JSZip licenses are in public/vendor.
 
 ## Import result visibility
 
-Successful imports show a Results ready panel with the observation/infant counts, direct View results/PDF/CSV actions, and an automatic scroll to the output. Selected results appear before the observation list, with a bounded scrollable evidence panel. The list shows 20 records/page and Previous/Next controls. Failed imports remain explicit and never report a successful output. Assets have a release query to prevent mixed cached script versions, and upload is disabled until document-import scripts initialize.
+Successful imports show a Results ready panel with the observation/infant counts, direct View results/PDF/Excel/CSV actions, and an automatic scroll to the output. Selected results appear before the observation list, with a bounded scrollable evidence panel. The list shows 20 records/page and Previous/Next controls. Failed imports remain explicit and never report a successful output. Assets have a release query to prevent mixed cached script versions, and upload is disabled until document-import scripts initialize.
 
 `node tests/import-batch-browser.cjs` checks a synthetic 65-record batch, pagination, visible output, exports and failed uploads. You can pass private TXT files as command arguments with independently known PREMII_EXPECTED_RECORDS and PREMII_EXPECTED_INFANTS counts; source files and generated artifacts must stay outside this checkout.
 
 `node tests/report-browser.cjs` validates actual physical PDF page counts with pdfinfo and checks English/Traditional Chinese content for short, missing-data, dense and long-text cases.
+
+## Excel export
+
+Export Excel (.xlsx) is available beside the quick export actions and above the observation list. It downloads a genuine Open XML workbook generated entirely in the browser, with one PREMII sheet and exactly 33 clinical columns A–AG. Study identifiers are text (leading zeros preserved), numeric codes/counts/weights are numeric, absent values are blank, and source dates/times remain ISO text. The header is formatted, frozen and filterable. String cells are explicitly typed and cannot become formulas. Internal metadata and evidence do not appear in the workbook.
+
+`node tests/excel-browser.cjs` tests the two buttons and reads back the downloaded workbooks with Python openpyxl, including both interface languages, zeros/blanks, numeric types, Unicode, leading zeros and literal formula-like IDs. Playwright, Chromium and openpyxl must be available in the test environment.
