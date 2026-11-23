@@ -223,6 +223,23 @@ try {
     d.audit.some((a) => JSON.parse(a.afterData)?.status === "confirmed"),
   );
   assert.ok(d.audit.some((a) => JSON.parse(a.afterData)?.status === "draft"));
+  await api("history", null, 401, "");
+  await api("history?before=invalid", null, 400);
+  assert.deepEqual((await api("data?history=0")).data.audit, []);
+  const history = (await api("history")).data;
+  assert.equal(history.entries.length, d.audit.length);
+  assert.equal(history.nextCursor, null);
+  assert.ok(
+    history.entries.every(
+      (entry, index) =>
+        index === 0 || Number(entry.id) < Number(history.entries[index - 1].id),
+    ),
+  );
+  const shiftHistory = (await api("history?entity=" + s.id)).data.entries;
+  assert.ok(shiftHistory.length > 1);
+  assert.ok(shiftHistory.every((entry) => entry.entity === s.id));
+  const older = (await api("history?before=" + history.entries[0].id)).data;
+  assert.deepEqual(older.entries, history.entries.slice(1));
   await api("logout", {}, 200, entry);
   await api("data", null, 401, entry);
   console.log(

@@ -284,6 +284,31 @@ try {
     path: screenshotDir + "/dashboard.png",
     fullPage: true,
   });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "Change history" })
+    .click();
+  await page.getByRole("heading", { name: "Change history" }).waitFor();
+  const historyRows = page.locator(".history-list > details");
+  const moreHistory = page.getByRole("button", { name: "Load older changes" });
+  await moreHistory.waitFor();
+  assert.equal(await historyRows.count(), 30);
+  await moreHistory.click();
+  await historyRows.nth(30).waitFor();
+  await historyRows.first().locator("summary").click();
+  await historyRows.first().locator("pre").first().waitFor();
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+    false,
+  );
+  assert.ok(await page.getByRole("button", { name: "Sign out" }).isVisible());
+  checks.push(
+    "History pagination and snapshots on mobile; sign-out accessible",
+  );
+  await page.getByRole("button", { name: /Overview/ }).click();
   await page.setViewportSize({ width: 1024, height: 768 });
   assert.equal(
     await page.evaluate(
