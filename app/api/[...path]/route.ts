@@ -76,6 +76,7 @@ async function handle(req: NextRequest) {
       await db
         .prepare("INSERT INTO users VALUES(?,?,?,?)")
         .run("admin", b.name, "admin", hash(b.password));
+      await audit("admin", "admin", null, { role: "admin" });
       return NextResponse.json({ ok: true });
     }
     if (path === "login") {
@@ -128,6 +129,31 @@ async function handle(req: NextRequest) {
       r.cookies.delete("session");
       return r;
     }
+    if (path === "history") {
+      const entity = req.nextUrl.searchParams.get("entity");
+      const before = req.nextUrl.searchParams.get("before");
+      if (before && !/^[1-9][0-9]{0,18}$/.test(before))
+        throw Error("Invalid history cursor");
+      const filters: string[] = [];
+      const values: string[] = [];
+      if (entity) {
+        filters.push("entity = ?");
+        values.push(entity);
+      }
+      if (before) {
+        filters.push("id < ?");
+        values.push(before);
+      }
+      const where = filters.length ? " WHERE " + filters.join(" AND ") : "";
+      const rows = await db
+        .prepare("SELECT * FROM audit" + where + " ORDER BY id DESC LIMIT 31")
+        .all(...values);
+      const entries = rows.slice(0, 30);
+      return NextResponse.json({
+        entries,
+        nextCursor: rows.length > 30 ? String(entries[29].id) : null,
+      });
+    }
     if (path === "data")
       return NextResponse.json({
         infants: (await all("infants")).map((x) => JSON.parse(x.data)),
@@ -141,7 +167,10 @@ async function handle(req: NextRequest) {
           u.role === "admin"
             ? (await all("users")).map(({ password, ...x }) => x)
             : [],
-        audit: await all("audit"),
+        audit:
+          req.nextUrl.searchParams.get("history") === "0"
+            ? []
+            : await all("audit"),
       });
     if (path === "users") {
       if (u.role !== "admin") throw Error("Admin required");
@@ -510,6 +539,7 @@ async function handle(req: NextRequest) {
           await db
             .prepare("INSERT INTO infants VALUES(?,?)")
             .run(id, JSON.stringify(d));
+          await audit(id, u.id, null, d);
           for (let j = 0; j < 3; j++) {
             let s = normalize({
               id: id + "-" + j,
@@ -551,6 +581,7 @@ async function handle(req: NextRequest) {
             await db
               .prepare("INSERT INTO shifts VALUES(?,?,?,?)")
               .run(s.id, id, 1, JSON.stringify(s));
+            await audit(s.id, u.id, null, s);
           }
         }
       });

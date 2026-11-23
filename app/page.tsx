@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { options, translate, localizeError, formatDateTime } from "../lib/i18n";
+import { History } from "./history";
 import { oa, validate, normalize } from "../lib/rules";
 const local = (s: string) =>
   s ? new Date(Date.parse(s) + 28800000).toISOString().slice(0, 16) : "";
@@ -18,8 +19,8 @@ export default function App() {
       shifts: [],
       imports: [],
       users: [],
-      audit: [],
     }),
+    [historyRevision, setHistoryRevision] = useState(0),
     [msg, M] = useState(""),
     [err, E] = useState(""),
     [busy, B] = useState(false),
@@ -85,7 +86,8 @@ export default function App() {
     return d;
   }
   async function refresh() {
-    D(await api("data"));
+    D(await api("data?history=0"));
+    setHistoryRevision((version) => version + 1);
   }
   async function act(fn: () => Promise<any>) {
     B(true);
@@ -363,10 +365,6 @@ export default function App() {
             <small>{t("brandSubtitle")}</small>
           </div>
         </div>
-        <div className="workspace">
-          {t("workspace")}
-          <span>{t("workspaceCaption")}</span>
-        </div>
         <nav>
           {[
             ["dashboard", "◫"],
@@ -375,13 +373,15 @@ export default function App() {
             ["evidence", "⇄"],
             ["trends", "⌁"],
             ["exports", "⇩"],
+            ["history", "◷"],
           ].map(([k, icon]) => (
             <button
               key={k}
               className={page === k ? "active" : ""}
+              aria-current={page === k ? "page" : undefined}
               onClick={() => nav(k)}
             >
-              <i>{icon}</i>
+              <i aria-hidden="true">{icon}</i>
               {t(k)}
               {k === "shifts" && (
                 <em>
@@ -396,11 +396,6 @@ export default function App() {
         </nav>
         <div className="asidebottom">
           <button onClick={() => nav("settings")}>⚙　{t("settings")}</button>
-          <div className="secure">
-            {t("privateWorkspace")}
-            <br />
-            <small>Asia/Taipei · UTC+08:00</small>
-          </div>
           <div className="profile">
             <span>{session.name.slice(0, 1)}</span>
             <div>
@@ -423,20 +418,13 @@ export default function App() {
       </aside>
       <div className="main">
         <header>
-          <span>
-            NICU <span className="muted">/</span> {t(page)}
-          </span>
-          <div>
-            <span className="demo">{t("demoLabel")}</span>
-            {languageSwitch}
-          </div>
+          <span className="demo">{t("demoLabel")}</span>
+          {languageSwitch}
         </header>
         <main>
           <div className="title">
             <div>
-              <div className="eyebrow">{t("researchEyebrow")}</div>
               <h1>{t(page)}</h1>
-              <p>{page === "dashboard" ? t("welcome") : t("subtitle")}</p>
             </div>
             <div className="actions">
               <button
@@ -514,38 +502,23 @@ export default function App() {
                       <span>{icon}</span>
                     </div>
                     <strong>{n}</strong>
-                    <small>
-                      {k === "pending"
-                        ? t("reviewMetricHint")
-                        : "PREMII · NICU"}
-                    </small>
                   </button>
                 ))}
-              </div>
-              <div className="notice">
-                <span>ⓘ</span>
-                <div>
-                  <b>{t("score")}</b>
-                  <p>
-                    {t("scoreHint")}
-                    <span className="muted"> {t("ruleVersionCaption")}</span>
-                  </p>
-                </div>
-                <button className="text" onClick={() => nav("settings")}>
-                  {t("viewRules")}
-                </button>
               </div>
               <div className="sectionhead">
                 <h2>
                   {t("recentAssessments")}
-                  <small>{t("recentCaption")}</small>
                 </h2>
                 <button className="text" onClick={() => nav("shifts")}>
                   {t("all")} →
                 </button>
               </div>
-              {table(list.slice(0, 6))}
-              <div className="twocol">
+              {table(
+                [...data.shifts]
+                  .sort((a, b) => b.start.localeCompare(a.start))
+                  .slice(0, 6),
+              )}
+              <div className="dashboard-followup">
                 <section className="card">
                   <h2>{t("missing")}</h2>
                   <p className="muted">{t("missingHint")}</p>
@@ -571,16 +544,6 @@ export default function App() {
                       </button>
                     ))}
                   {!data.shifts.length && <p>{t("empty")}</p>}
-                </section>
-                <section className="card protocol">
-                  <span className="eyebrow">{t("researchProtocol")}</span>
-                  <h2>{t("traceableTitle")}</h2>
-                  <p>
-                    {t("traceableBody")}
-                    <br />
-                    {t("traceableDetails")}
-                  </p>
-                  <div>{t("traceableFlow")}</div>
                 </section>
               </div>
             </>
@@ -1089,16 +1052,17 @@ export default function App() {
               </p>
             </section>
           )}
+          {page === "history" && (
+            <section className="card">
+              <History key={historyRevision} lang={lang} />
+            </section>
+          )}
           {page === "settings" && (
             <>
-              <section className="card">
-                <h2>{t("rulesTitle")}</h2>
-                <p>{t("score")}</p>
-                <p>{t("respRules")}</p>
-                <p>{t("oxygenRules")}</p>
-                <p>{t("medicationRules")}</p>
-                {session.role === "admin" && (
+              {session.role === "admin" && !data.infants.length && (
+                <section className="card">
                   <button
+                    disabled={busy}
                     onClick={() =>
                       act(async () => {
                         await api("seed", {});
@@ -1108,8 +1072,8 @@ export default function App() {
                   >
                     {t("seed")}
                   </button>
-                )}
-              </section>
+                </section>
+              )}
               {session.role === "admin" && (
                 <section className="card">
                   <h2>{t("accounts")}</h2>
@@ -1147,26 +1111,6 @@ export default function App() {
                   ))}
                 </section>
               )}
-              <section className="card">
-                <h2>{t("audit")}</h2>
-                {data.audit
-                  .slice(-30)
-                  .reverse()
-                  .map((a: any) => (
-                    <details key={a.id}>
-                      <summary>
-                        {fmt(a.time)} · {a.actor} · {a.entity}
-                      </summary>
-                      <pre>
-                        {t("before")}
-                        <span className="user-content">{a.beforeData}</span>
-                        <br />
-                        {t("after")}
-                        <span className="user-content">{a.afterData}</span>
-                      </pre>
-                    </details>
-                  ))}
-              </section>
             </>
           )}
           <footer>
@@ -1643,19 +1587,12 @@ export default function App() {
                   )),
               )}
             </section>
-            <details>
-              <summary>{t("history")}</summary>
-              {data.audit
-                .filter((a: any) => a.entity === form.id)
-                .map((a: any) => (
-                  <pre key={a.id}>
-                    {fmt(a.time)} · {a.actor}
-                    <br />
-                    {a.beforeData}
-                    <br />→ {a.afterData}
-                  </pre>
-                ))}
-            </details>
+            {form.id && (
+              <details>
+                <summary>{t("history")}</summary>
+                <History key={form.id + ":" + historyRevision} lang={lang} entity={form.id} />
+              </details>
+            )}
           </div>
         </div>
       )}

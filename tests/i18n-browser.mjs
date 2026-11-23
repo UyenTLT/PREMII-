@@ -166,6 +166,7 @@ try {
       "evidence",
       "trends",
       "exports",
+      "history",
     ]) {
       const nav = page.locator("nav button").filter({ hasText: tr(lang, key) });
       await nav.click();
@@ -175,10 +176,7 @@ try {
       .locator(".asidebottom button")
       .filter({ hasText: tr(lang, "settings") })
       .click();
-    // Include raw audit entries in the DOM; record text is explicitly excluded by the scanner.
-    for (const details of await page.locator("details").all())
-      await details.evaluate((el) => (el.open = true));
-    await checkMode(lang, lang + " settings, roles, rules and audit labels");
+    await checkMode(lang, lang + " settings and roles");
     await button("＋ " + tr(lang, "newInfant")).click();
     const infant = page.locator(".modal");
     await infant

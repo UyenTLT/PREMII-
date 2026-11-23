@@ -69,6 +69,7 @@ aside {
   align-items: center;
   gap: 11px;
   padding: 0 6px;
+  margin-bottom: 28px;
   font-size: 17px;
 }
 .brandmark {
@@ -90,17 +91,6 @@ aside {
 }
 .brand b {
   font-weight: 700;
-}
-.workspace {
-  margin: 44px 15px 18px;
-  color: #8b97a5;
-  font-size: 11px;
-  letter-spacing: 1px;
-}
-.workspace span {
-  font-size: 8px;
-  display: block;
-  margin-top: 5px;
 }
 nav {
   display: grid;
@@ -140,18 +130,6 @@ nav em {
   background: none;
   color: #657789;
 }
-.secure {
-  border-top: 1px solid var(--line);
-  margin-top: 16px;
-  padding: 23px 9px;
-  color: var(--teal);
-  font-size: 11px;
-}
-.secure small {
-  color: #8b97a5;
-  display: block;
-  margin: 7px 0 0 13px;
-}
 .profile {
   display: flex;
   align-items: center;
@@ -180,19 +158,15 @@ nav em {
   width: calc(100% - 246px);
 }
 header {
-  height: 76px;
+  min-height: 56px;
   background: white;
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
+  gap: 12px;
   padding: 0 40px;
   font-size: 12px;
-}
-header > div {
-  display: flex;
-  align-items: center;
-  gap: 22px;
 }
 .language {
   background: none;
@@ -216,12 +190,6 @@ main {
   justify-content: space-between;
   margin-bottom: 30px;
 }
-.eyebrow {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  color: var(--teal);
-}
 h1 {
   font-size: 29px;
   letter-spacing: 0.5px;
@@ -243,7 +211,7 @@ h1 + p {
 }
 .stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
 }
 .stat {
@@ -272,12 +240,7 @@ h1 + p {
   display: block;
   font-size: 38px;
   font-weight: 500;
-  margin: 14px 0;
-}
-.stat small {
-  font-size: 10px;
-  font-weight: 400;
-  color: #96a0ab;
+  margin: 10px 0 0;
 }
 .notice {
   display: flex;
@@ -383,12 +346,6 @@ td:nth-child(4) {
   background: #fff0e7;
   color: #a46630;
 }
-.twocol {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 22px;
-  margin-top: 28px;
-}
 .card {
   background: white;
   border: 1px solid var(--line);
@@ -415,22 +372,6 @@ td:nth-child(4) {
 .attention span {
   color: #b48224;
   font-size: 11px;
-}
-.protocol {
-  background: #f0f5f7;
-}
-.protocol h2 {
-  font-size: 21px;
-  margin-top: 17px;
-}
-.protocol p {
-  line-height: 2.2;
-}
-.protocol > div {
-  font-size: 11px;
-  margin-top: 22px;
-  letter-spacing: 1px;
-  color: var(--teal);
 }
 footer {
   display: flex;
@@ -749,34 +690,47 @@ summary {
   }
 }
 @media (max-width: 760px) {
-  aside {
-    width: 70px;
-    padding: 20px 8px;
+  .shell {
+    display: block;
   }
-  .brand > div:nth-child(2),
-  .workspace,
-  .asidebottom {
-    display: none;
+  aside {
+    position: static;
+    width: 100%;
+    height: auto;
+    padding: 14px 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .brand {
+    margin-bottom: 12px;
   }
   nav {
-    margin-top: 35px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
   }
   nav button {
-    font-size: 0;
-    padding: 12px;
+    gap: 8px;
+    padding: 8px;
   }
-  nav i {
-    font-size: 23px;
+  .asidebottom {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    border-top: 1px solid var(--line);
   }
-  nav em {
+  .profile {
+    border: 0;
+    padding: 0;
+  }
+  .profile > span {
     display: none;
   }
   .main {
-    margin-left: 70px;
-    width: calc(100% - 70px);
+    margin: 0;
+    width: 100%;
   }
   header {
-    padding: 0 20px;
+    padding: 0 16px;
   }
   .demo {
     display: none;
@@ -793,7 +747,6 @@ summary {
   .stats {
     grid-template-columns: 1fr 1fr;
   }
-  .twocol,
   .charts {
     grid-template-columns: 1fr;
   }
@@ -845,4 +798,35 @@ summary {
 .modal-controls .language {
   font-size: 12px;
   padding: 8px 10px;
+}
+
+
+.dashboard-followup {
+  margin-top: 24px;
+}
+.history-list > details {
+  margin: 0;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.history-list > details:first-child {
+  padding-top: 0;
+}
+.history-list > button {
+  margin-top: 16px;
+}
+.history-values {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.history-values > div {
+  min-width: 0;
+}
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
 }
