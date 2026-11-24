@@ -36,6 +36,31 @@ function currentObservations(text,date){
   return true;
  }).join('\n');
 }
+function ventilatorFiO2(text,noteDate){
+ const readings=[];
+ // A settings tuple starts with FiO₂, followed by rate and inspiratory/expiratory pressure.
+ const settings=/^\s*(?:[#@•-]\s*)?(?:Ventilation|Ventilator(?: settings)?|呼吸器(?:設定)?)\s*:\s*(?:(\d{4}[/-]\d{2}[/-]\d{2}|\d{1,2}\/\d{1,2})\s+)?(?:IMV|SIMV|NIMV|NIPPV|n?CPAP|HFOV)\s*\[\s*(\d+(?:\.\d+)?)\s*%\s*,\s*\d+(?:\.\d+)?\s*,\s*\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?\s*\]/i;
+ for(const line of text.split('\n')){
+  const match=line.normalize('NFKC').match(settings);
+  if(!match)continue;
+  const percent=Number(match[2]);
+  if(percent<21||percent>100)continue;
+  const settingDate=match[1];
+  let referenceDate=null;
+  if(settingDate){
+   const fullDate=validDate(settingDate);
+   if(fullDate){
+    if(fullDate!==noteDate)referenceDate=fullDate;
+   }else{
+    const [month,day]=settingDate.split('/').map(Number);
+    if(!validDate(`2000-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`))continue;
+    if(!noteDate||month!==Number(noteDate.slice(5,7))||day!==Number(noteDate.slice(8,10)))referenceDate=settingDate;
+   }
+  }
+  readings.push({percent,evidence:line.trim(),referenceDate});
+ }
+ return readings;
+}
 function isQuestionnaireTemplate(text){
  const identified=/(?:研究\s*ID|Study\s*ID|Infant\s*ID)\s*[:：]\s*[^\s】]+/i.test(text);
  return !identified&&(/PREMature Infant Index Questionnaire/i.test(text)&&/Instructions:/i.test(text)||/RES1[\s\S]*FEED1/.test(text)&&/請選擇/.test(text));
@@ -47,8 +72,8 @@ function extractFileRecords(text,filename,fileId='file-1'){
   r.infant=segment.infant;r.date=segment.date;r.recordId=`${fileId}-${index+1}`;r.patientKey=`${fileId}-${segment.caseIndex}`;r.noteTime=segment.noteTime;
   r.filename=filename;r.sourceLine=segment.line;r.extractionStatus='automated-unverified';r.schemaVersion='premii-file-observations-v2';r.evidence={};r.fieldStatus=Object.fromEntries(PREMII_FIELDS.map(k=>[k,'not-found']));
   const clinical=currentObservations(segment.text,segment.date);
-  r.fio2Readings=documentedFiO2(clinical);
-  const proposals=extractSuggestions(clinical,r.fio2Readings);
+  r.fio2Readings=[...documentedFiO2(clinical),...ventilatorFiO2(segment.text,segment.date)];
+  const proposals=extractSuggestions(clinical,r.fio2Readings.filter(reading=>!reading.referenceDate));
   for(const p of proposals){if(p.field==='weighed')continue;r[p.field]=p.value;r.evidence[p.field]=p.evidence;r.fieldStatus[p.field]='extracted';}
   const set=(field,v,evidence)=>{if(v!==null&&v!==undefined){r[field]=v;r.fieldStatus[field]='extracted';r.evidence[field]=evidence;}};
   if(r.infant)set('infant',r.infant,'Source study/infant ID heading');if(r.date)set('date',r.date,'Source dated note heading');

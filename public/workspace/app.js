@@ -100,11 +100,12 @@ function fio2Summary(record){
  const explicitCode=/\bOA\s*[:=：]/i.test(record.evidence?.OA??'');
  const showRecordedCode=explicitCode||record.manualEdits?.OA||record.fieldStatus?.OA==='conflicting';
  if(!readings.length)return [codedSummary(record,'OA')];
- const values=readings.map(({percent})=>{
+ const values=readings.map(({percent,referenceDate})=>{
+  if(referenceDate)return `${percent}% · ${t('Settings from')} ${referenceDate}`;
   const category=record.RES1==='2'||showRecordedCode?null:oxygenCategory(percent);
   return category===null?`${percent}%`:`${percent}% (OA = ${category})`;
  });
- if(showRecordedCode)values.push(codedSummary(record,'OA'));
+ if(showRecordedCode||readings.every(reading=>reading.referenceDate))values.push(codedSummary(record,'OA'));
  return values;
 }
 function eventEvidence(record){

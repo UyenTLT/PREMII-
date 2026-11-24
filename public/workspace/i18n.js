@@ -6,6 +6,7 @@ const translations = {
   "View notes": "查看記錄",
   "Observation note": "觀察記錄",
   "Close": "關閉",
+  "Settings from": "設定日期",
   "Case ID": "個案代碼",
   "Birth GA": "出生週數",
   "Assessment date": "評估日期",
