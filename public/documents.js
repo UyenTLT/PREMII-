@@ -5,9 +5,11 @@ let pdfReader;
 let lastImportSummary=null;
 const importItems=[];
 function noteKey(record){
- if(!record.infant)return null;
+ const original=field=>record.manualEdits?.[field]?record.manualEdits[field].originalValue:record[field];
+ const infant=original('infant');
+ if(!infant)return null;
  return JSON.stringify([
-  record.infant,record.date,record.noteTime,
+  infant,original('date'),original('noteTime'),
   record.sourceText.replace(/\r\n?/g,'\n').trim()
  ]);
 }
@@ -127,7 +129,7 @@ function buildReport(){
  const clip=(value,max)=>{const chars=Array.from(String(value??''));return chars.length>max?chars.slice(0,max-1).join('')+'…':chars.join('');};
  const clinical=PREMII_FIELDS.filter(k=>!['infant','date','shift','start','end'].includes(k));
  const snippets=new Map();
- for(const field of clinical){const quote=r.evidence?.[field];if(quote){if(!snippets.has(quote))snippets.set(quote,[]);snippets.get(quote).push(field);}}
+ for(const field of clinical){const quote=r.manualEdits?.[field]?null:r.evidence?.[field];if(quote){if(!snippets.has(quote))snippets.set(quote,[]);snippets.get(quote).push(field);}}
  const denseSummary=clinical.filter(k=>r[k]!=null).length>12||Array.from(r.infant??'').length>60||Array.from(r.filename??'').length>90||(r.FEED1!=null&&t(options.FEED1[Number(r.FEED1)]).length>120);
  const separateEvidence=snippets.size>4||(snippets.size>0&&denseSummary);
  const totalPages=separateEvidence?2:1;
@@ -153,7 +155,7 @@ function buildReport(){
  function section(parent,title){const block=node('section',undefined,'pdf-section');block.append(node('h2',t(title)));parent.append(block);return block;}
  function rows(parent,items){const table=node('table',undefined,'pdf-values');const body=node('tbody');for(const [label,field,unit] of items){const row=node('tr');row.append(node('th',t(label)));const val=value(field);row.append(node('td',val+(unit&&r[field]!=null?' '+unit:'')));body.append(row);}table.append(body);parent.append(table);}
  const first=page('Observation summary',1);
- first.append(node('p',t('Automatically extracted · Unverified · One source note, not an assumed complete shift'),'pdf-status'));
+ first.append(node('p',t(r.manualEdits?'Contains manual edits · One source note':'Automatically extracted · Unverified · One source note, not an assumed complete shift'),'pdf-status'));
  const resp=section(first,'01 · Respiratory support & oxygen');
  rows(resp,[['Respiratory support','RES1'],['Device','RES2'],['Flow source','RES3'],['Greatest flow','RES3_1','cc/min'],['Highest oxygen concentration','OA']]);
  const pair=node('div',undefined,'pdf-pair');first.append(pair);

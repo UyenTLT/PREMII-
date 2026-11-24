@@ -67,3 +67,31 @@ footer { flex-wrap: wrap; gap: 8px; color: #5b7167; }
 #import-issues { padding-left: 24px; overflow-wrap: anywhere; }
 #import-issues .import-error { color: #8c3828; }
 #pdf-selection, #records-pdf-selection { overflow-wrap: anywhere; }
+
+#observation-editor {
+  width: min(760px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  border: 1px solid #dbe4e0;
+  border-radius: 12px;
+  color: inherit;
+  padding: 20px;
+}
+#observation-editor::backdrop { background: #17332a80; }
+.editor-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+}
+.editor-fields label { min-width: 0; font-size: 13px; }
+.editor-fields input, .editor-fields select { min-width: 0; }
+.editor-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 0 2px;
+  background: #fff;
+}
+.edit-marker { color: #236356; font-size: 12px; font-weight: 650; }

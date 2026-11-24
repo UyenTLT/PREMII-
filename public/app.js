@@ -13,12 +13,22 @@ const options = {
  FEED1: [null,"All feeds by breast or bottle, no breathing or swallowing problems; all feeds ≤ 30 minutes","All feeds by breast or bottle, no breathing or swallowing problems; at least one feed > 30 minutes","All feeds by breast or bottle, with breathing or swallowing problems","Some tube feeds and some breast or bottle feeds, without breathing or swallowing problems","Some tube feeds and some breast or bottle feeds, with breathing or swallowing problems","Any intravenous nutrition or all feeds by enteral feeding tube"]
 };
 const labels={RES1:'Respiratory support',RES2:'Device (supplemental, unscored)',RES3:'Flow source',RES3_1:'Greatest flow (cc/min)',OA:'Oxygen concentration',bradyThreshold:'Bradycardia threshold ≤ (beats/min)',desatThreshold:'Desaturation threshold ≤ (%)',ABD1_1:'Apnea · Required intervention',ABD1_2:'Apnea · No intervention required',ABD2_1:'Bradycardia · Required intervention',ABD2_2:'Bradycardia · No intervention required',ABD3_1:'Desaturation · Required intervention',ABD3_2:'Desaturation · No intervention required',ABD4:'Prescribed caffeine or other stimulant',THG1:'Thermoregulation',fed:'Feeds during shift',FEED1:'Feeding',WEIGHT1:'Lowest documented weight in this note (g)',WEIGHT2:'Weighing date',WEIGHT3:'Weighing time'};
-function missing(r,field){return t(r.fieldStatus?.[field]==='not-applicable'?'Not applicable':r.fieldStatus?.[field]==='conflicting'?'Conflicting source values':'Not found in source');}
+const codedLabels = {
+ ABD4: {0:'No',1:'Yes'},
+ fed: {yes:'Yes',no:'No'},
+ weighed: {yes:'Yes',no:'No'},
+ first: {on:'Yes',off:'No'},
+ RES2: {1:'Mask',2:'Tracheostomy tube',3:'Endotracheal tube'},
+ RES3: {1:'Oxygen flow meter',2:'Air flow meter'},
+ THG2: {1:'Radiant warmer',2:'Closed, heated incubator'},
+ FEED2: {1:'Bottle',2:'Breast',both:'Both'},
+ shift: {1:'Shift 1',2:'Shift 2',3:'Shift 3',4:'Shift 4'}
+};
+function missing(r,field){if(r.fieldStatus?.[field]==='manually-edited')return t('Not documented');return t(r.fieldStatus?.[field]==='not-applicable'?'Not applicable':r.fieldStatus?.[field]==='conflicting'?'Conflicting source values':'Not found in source');}
 function fieldValue(r,field){
  if(r[field]===null||r[field]===undefined||r[field]==='')return missing(r,field);
  if(options[field])return t(options[field][Number(r[field])])+` [${r[field]}]`;
- const yesNo={ABD4:{'1':'Yes','0':'No'},fed:{yes:'Yes',no:'No'},weighed:{yes:'Yes',no:'No'},RES2:{'3':'Endotracheal tube','2':'Tracheostomy tube','1':'Mask'},RES3:{'2':'Air flow meter','1':'Oxygen flow meter'}};
- return yesNo[field]?t(yesNo[field][r[field]]??r[field]):String(r[field]);
+ return codedLabels[field]?t(codedLabels[field][r[field]]??r[field]):String(r[field]);
 }
 function node(tag,text,className){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(className)el.className=className;return el;}
 function activeRecord(){return records.find(r=>r.recordId===selectedRecordId);}
@@ -80,12 +90,17 @@ function render(){
  $('#records-pdf-selection').hidden=!active;
  const r=active;if(!r){$('#selected-note').textContent='';$('#source-context').textContent='';$('#source-text').value='';$('#extracted-fields').replaceChildren();return;}
  $('#selected-note').textContent=`${r.infant??t('Infant ID not documented')} · ${r.date??t('Date not documented')} ${r.noteTime??''}`;
- $('#source-context').textContent=`${r.filename} · ${t('Source line')} ${r.sourceLine} · ${r.shift?`${t('Shift')} ${r.shift}`:t('Shift not documented')}`;
+ $('#source-context').textContent=`${r.manualEdits?t('Manually edited')+' · ':''}${r.filename} · ${t('Source line')} ${r.sourceLine} · ${r.shift?`${t('Shift')} ${r.shift}`:t('Shift not documented')}`;
  $('#source-text').value=r.sourceText;
  const details=$('#extracted-fields');details.replaceChildren();
  for(const [field,label] of Object.entries(labels)){
   const item=node('article',undefined,'extracted-field');item.append(node('p',field,'eyebrow'),node('h3',t(label)),node('p',fieldValue(r,field),r[field]===null?'missing-value':'extracted-value'));
-  if(r.evidence[field])item.append(node('blockquote',r.evidence[field],'source-evidence'));details.append(item);
+  if(r.manualEdits?.[field])item.append(node('p',t('Manually edited'),'edit-marker'));
+  if(r.evidence[field]){
+   if(r.manualEdits?.[field])item.append(node('p',t('Original extraction evidence'),'muted'));
+   item.append(node('blockquote',r.evidence[field],'source-evidence'));
+  }
+  details.append(item);
  }
 }
 function download(content,type,ext){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=`premii-${new Date().toISOString().slice(0,10)}.${ext}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
@@ -114,3 +129,114 @@ $('#export-excel').onclick=async()=>{
  finally{exportingExcel=false;render();}
 };
 $('#quick-export-excel').onclick=()=>$('#export-excel').click();
+
+
+const editor = $('#observation-editor');
+const editorForm = $('#observation-form');
+const editorLabels = {
+ ...labels, infant:'Infant ID', date:'Date', noteTime:'Source note timestamp',
+ shift:'Shift', start:'Start time', end:'End time', ABD4_1:'Stimulant name',
+ THG2:'Warming device', FEED2:'Feeding method', first:'First assessment',
+ baselineWeight:'Baseline weight (g)', baselineDate:'Baseline weight date',
+ baselineTime:'Baseline weight time', weighed:'Weighed during shift'
+};
+const numericFields = {
+ RES3_1:[0,1999.99,'any'], bradyThreshold:[1,300,1], desatThreshold:[1,100,1],
+ WEIGHT1:[1,20000,1], baselineWeight:[1,20000,1],
+ ABD1_1:[0,null,1], ABD1_2:[0,null,1], ABD2_1:[0,null,1],
+ ABD2_2:[0,null,1], ABD3_1:[0,null,1], ABD3_2:[0,null,1]
+};
+const editorFields = [...PREMII_FIELDS.slice(0,2),'noteTime',...PREMII_FIELDS.slice(2)];
+
+$('#edit-observation').onclick=()=>{
+ const record=activeRecord();
+ if(!record)return;
+ const fields=$('#observation-fields');
+ fields.replaceChildren();
+ for(const field of editorFields){
+  const label=node('label',t(editorLabels[field])+' · '+field);
+  const choices=options[field]??codedLabels[field];
+  const input=node(choices?'select':'input');
+  input.name=field;
+  if(choices){
+   const blank=node('option',t('Not documented'));
+   blank.value='';
+   input.append(blank);
+   for(const [value,description] of Object.entries(choices)){
+    if(!description)continue;
+    const option=node('option',t(description));
+    option.value=value;
+    input.append(option);
+   }
+  }else if(numericFields[field]){
+   const [min,max,step]=numericFields[field];
+   input.type='number';
+   input.min=min;
+   if(max!==null)input.max=max;
+   input.step=step;
+  }else if(['date','WEIGHT2','baselineDate'].includes(field)){
+   input.type='date';
+  }else if(['noteTime','start','end','WEIGHT3','baselineTime'].includes(field)){
+   input.type='time';
+  }
+  input.value=record[field]??'';
+  input.dataset.initialValue=input.value;
+  label.append(input);
+  fields.append(label);
+ }
+ editor.showModal();
+};
+$('#cancel-observation').onclick=()=>editor.close();
+editorForm.addEventListener('input',()=>{
+ for(const field of ['OA','RES2','RES3','RES3_1','FEED1','FEED2']){
+  editorForm.elements.namedItem(field).setCustomValidity('');
+ }
+});
+editorForm.onsubmit=event=>{
+ event.preventDefault();
+ const record=activeRecord();
+ if(!record)return;
+ const updated=Object.fromEntries(editorFields.map(field=>{
+  const input=editorForm.elements.namedItem(field);
+  const value=input.value===input.dataset.initialValue?record[field]??null:input.value.trim()||null;
+  return [field,value];
+ }));
+ const constraints=[
+  ['RES1','OA',updated.RES1==='2','Clear oxygen concentration for low-flow support.'],
+  ['RES1','RES2',updated.RES1!==null&&updated.RES1!=='5','Clear the device for this respiratory support.'],
+  ['RES1','RES3',updated.RES1!==null&&updated.RES1!=='2','Clear the flow source for this respiratory support.'],
+  ['RES1','RES3_1',updated.RES1!==null&&updated.RES1!=='2','Clear the flow value for this respiratory support.'],
+  ['fed','FEED1',updated.fed==='no','Clear the feeding level when no feeds occurred.'],
+  ['fed','FEED2',updated.fed==='no','Clear the feeding method when no feeds occurred.']
+ ];
+ for(const [controller,field,invalid,message] of constraints){
+  if(!invalid||updated[field]===null||(updated[field]===record[field]&&updated[controller]===record[controller]))continue;
+  const input=editorForm.elements.namedItem(field);
+  input.setCustomValidity(t(message));
+  input.reportValidity();
+  return;
+ }
+ let changed=false;
+ for(const field of editorFields){
+  const previous=record[field]??null;
+  const value=updated[field];
+  if(previous===value)continue;
+  changed=true;
+  record.manualEdits??={};
+  const original=record.manualEdits[field]??{originalValue:previous,originalStatus:record.fieldStatus[field]??null};
+  record[field]=value;
+  if(value===original.originalValue){
+   if(original.originalStatus===null)delete record.fieldStatus[field];
+   else record.fieldStatus[field]=original.originalStatus;
+   delete record.manualEdits[field];
+  }else{
+   record.manualEdits[field]=original;
+   record.fieldStatus[field]='manually-edited';
+  }
+ }
+ if(record.manualEdits&&!Object.keys(record.manualEdits).length)delete record.manualEdits;
+ editor.close();
+ render();
+ $('#edit-observation').focus();
+ if(changed)notify(t('Observation updated.'));
+};

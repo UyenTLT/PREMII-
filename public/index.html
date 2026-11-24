@@ -4,15 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PREMII · File-based assessment</title>
-    <link rel="stylesheet" href="style.css?v=workspace-review-1" />
-    <script src="i18n.js?v=workspace-review-1" defer></script>
+    <link rel="stylesheet" href="style.css?v=observation-edit-1" />
+    <script src="i18n.js?v=observation-edit-1" defer></script>
     <script src="suggestions.js?v=20261117-excel" defer></script>
     <script src="extraction.js?v=20261117-excel" defer></script>
     <script src="vendor/jszip.min.js" defer></script>
     <script src="spreadsheet.js?v=20261117-excel" defer></script>
-    <script src="app.js?v=workspace-review-1" defer></script>
+    <script src="app.js?v=observation-edit-1" defer></script>
     <script src="vendor/mammoth.browser.min.js" defer></script>
-    <script src="documents.js?v=workspace-review-1" defer></script>
+    <script src="documents.js?v=observation-edit-1" defer></script>
   </head>
   <body>
     <noscript
@@ -42,7 +42,7 @@
         <h1>Your documents. Structured PREMII reports.</h1>
         <p>
           Upload medical records. Extract documented observations. Export the
-          report. No manual data entry.
+          report.
         </p>
       </section>
       <div class="notice">
@@ -170,9 +170,9 @@
           <p id="source-context" class="muted"></p>
           <p class="notice">
             Results are automatically extracted and have not been clinically
-            verified. The source below is read-only; there are no fields to
-            enter or complete.
+            verified. Review the original source before saving corrections.
           </p>
+          <button id="edit-observation" type="button" class="secondary">Edit observation</button>
           <div id="extracted-fields" class="extracted-grid"></div>
         </div>
         <details class="card">
@@ -193,6 +193,17 @@
         >
       </footer>
     </main>
+    <dialog id="observation-editor" aria-labelledby="editor-title">
+      <form id="observation-form">
+        <h2 id="editor-title">Edit observation</h2>
+        <p class="muted">Changes apply to this session and its exports. Blank fields stay undocumented.</p>
+        <div id="observation-fields" class="editor-fields"></div>
+        <div class="editor-actions">
+          <button id="cancel-observation" type="button" class="secondary">Cancel</button>
+          <button type="submit">Save changes</button>
+        </div>
+      </form>
+    </dialog>
     <section id="print-report" aria-label="PREMII report"></section>
     <div id="toast" role="status" aria-live="polite"></div>
   </body>
