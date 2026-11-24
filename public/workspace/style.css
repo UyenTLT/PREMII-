@@ -78,12 +78,12 @@ footer { flex-wrap: wrap; gap: 8px; color: #5b7167; }
 .infant-group button[aria-expanded="true"]::before { content: "▾"; }
 .case-values { margin: 0; padding: 0; list-style: none; }
 .case-values li { line-height: 1.45; white-space: pre-line; }
-.case-more { margin-top: 6px; }
-.case-more summary { margin-bottom: 6px; }
-td:has(.case-more[open]) > .case-preview { display: none; }
 .case-values li + li { margin-top: 8px; }
-.case-sources summary { cursor: pointer; }
-.case-sources button { display: block; width: 100%; margin-top: 6px; text-align: left; white-space: pre-line; overflow-wrap: anywhere; }
+#records-table .view-observations { padding: 6px 8px; font-size: 11px; }
+.assessment-date { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.birth-ga-conflict { color: #80521e; font-weight: 600; }
+#daily-note-picker { max-width: 520px; margin-bottom: 14px; font-weight: 650; }
+#daily-note-select { font-weight: normal; }
 #import-file-details { margin-top: 12px; }
 #import-file-details summary { cursor: pointer; }
 #import-issues { padding-left: 24px; overflow-wrap: anywhere; }

@@ -1,7 +1,6 @@
 'use strict';
 const $=s=>document.querySelector(s);
 const records=[];
-const expandedGroups=new Set();
 const expandedInfants=new Set();
 let mergeSequence=0;
 let selectedRecordId=null;
@@ -81,15 +80,12 @@ function showRecordInList(record,expandGroup=true){
  const groupByInfant=$('#group-by-infant').checked;
  const groups=recordGroups(rows,!groupByInfant);
  const index=groups.findIndex(([,items])=>items.includes(record));
- if(expandGroup&&index>=0){
-  if(groupByInfant)expandedInfants.add(groups[index][0]);
-  expandedGroups.add(recordGroups([record])[0][0]);
- }
+ if(expandGroup&&groupByInfant&&index>=0)expandedInfants.add(groups[index][0]);
  recordPage=Math.floor(Math.max(0,index)/RECORDS_PER_PAGE);
 }
 function birthGestationalAges(record){
  const source=record.sourceText??'';
- return [...source.matchAll(/(?:\b(?:Birth GA|Gestational age at birth|GA)|出生(?:胎齡|週數))\s*[:：=]?\s*(\d{1,2})\s*(?:weeks?|w|週|\+)\s*(\d)\s*(?:days?|d|天)?(?!\d)/gi)]
+ return [...source.matchAll(/(?:\b(?:Birth GA|GA at birth|Gestational age at birth|born at)|出生(?:胎齡|週數))\s*[:：=]?\s*(\d{1,2})\s*(?:weeks?|w|週|\+)\s*(\d)\s*(?:days?|d|天)?(?!\d)/gi)]
   .map(([,weeks,days])=>Number(days)<7?`${Number(weeks)}w${days}d`:null).filter(Boolean);
 }
 function codedSummary(record,field){
@@ -138,17 +134,9 @@ function appendSummaryCell(row,items,valuesFor){
    const characters=Array.from(value);
    return characters.length>100?characters.slice(0,99).join('').trimEnd()+'…':value;
   });
-  const list=node('ul',undefined,'case-values case-preview');
+  const list=node('ul',undefined,'case-values');
   for(const value of preview)list.append(node('li',value));
   cell.append(list);
-  if(entries.length>preview.length||preview.some((value,index)=>value!==entries[index])){
-   const more=node('details',undefined,'case-more');
-   more.append(node('summary',t('Full text')));
-   const full=node('ul',undefined,'case-values');
-   for(const value of entries)full.append(node('li',value));
-   more.append(full);
-   cell.append(more);
-  }
  }else{
   cell.textContent='—';
  }
@@ -160,14 +148,6 @@ function render(){
  const groups=recordGroups(visibleRecords,!groupByInfant);
  const pageCount=groups.length;
  const active=activeRecord();
- const gestationalAgesByInfant=new Map();
- for(const item of visibleRecords){
-  if(!item.infant)continue;
-  const ages=birthGestationalAges(item);
-  if(!ages.length)continue;
-  if(!gestationalAgesByInfant.has(item.infant))gestationalAgesByInfant.set(item.infant,new Set());
-  for(const age of ages)gestationalAgesByInfant.get(item.infant).add(age);
- }
  $('#record-count').textContent=records.length;$('#empty-state').hidden=!!records.length;
  for(const id of ['export-json','export-csv'])$('#'+id).disabled=!records.length;
  $('#output-ready').hidden=!records.length;
@@ -190,7 +170,7 @@ function render(){
  const body=$('#records-table tbody');
  body.replaceChildren();
  const offset=recordPage*RECORDS_PER_PAGE;
- function renderDateRow(key,items){
+ function renderDateRow(items){
   const row=node('tr',undefined,items.includes(active)?'selected-record':undefined);
   const id=node('th',items[0].infant??t('Infant ID not documented'));
   id.scope='row';
@@ -198,10 +178,19 @@ function render(){
   // Use merged values in the summary and keep all original notes accessible.
   const mergedIds=new Set(items.flatMap(item=>item.mergedFrom?.map(source=>source.recordId)??[]));
   const observations=items.filter(item=>!mergedIds.has(item.recordId));
-  const {infant,date}=items[0];
-  const birthAges=infant?[...(gestationalAgesByInfant.get(infant)??[])]:birthGestationalAges(items[0]);
-  appendSummaryCell(row,[birthAges],ages=>ages);
-  row.append(node('td',date||t('Date not documented')));
+  const {date}=items[0];
+  const birthAges=new Set(items.flatMap(birthGestationalAges));
+  const birthAge=birthAges.size>1?t('Check source'):[...birthAges][0]??'—';
+  row.append(node('td',birthAge,birthAges.size>1?'birth-ga-conflict':undefined));
+  const dateCell=node('td');
+  if(date){
+   const dateLabel=node('time',date,'assessment-date');
+   dateLabel.dateTime=date;
+   dateCell.append(dateLabel);
+  }else{
+   dateCell.textContent=t('Date not documented');
+  }
+  row.append(dateCell);
   appendSummaryCell(row,observations,item=>[
    [codedSummary(item,'RES1'),codedSummary(item,'RES2')].filter(Boolean).join('\n')
   ]);
@@ -212,38 +201,22 @@ function render(){
   ].filter(Boolean).join(' · ')]);
   appendSummaryCell(row,observations,eventEvidence);
   const action=node('td');
-  const details=node('details',undefined,'case-sources');
-  details.open=expandedGroups.has(key);
-  details.ontoggle=()=>{
-   if(!details.isConnected)return;
-   if(details.open)expandedGroups.add(key);
-   else expandedGroups.delete(key);
-  };
-  details.append(node('summary',`${items.length} ${t('observations')}`));
-  for(const [index,item] of items.entries()){
-   const source=item.mergedFrom?t('Merged observation'):item.filename;
-   const view=node('button',`${t('Note')} ${index+1}\n${source}`,'secondary');
-   view.type='button';
-   view.dataset.observationId=item.recordId;
-   view.setAttribute('aria-haspopup','dialog');
-   if(item===active)view.setAttribute('aria-current','true');
-   view.onclick=()=>{
-    expandedGroups.add(key);
-    openObservationDetails(item,view);
-   };
-   details.append(view);
-  }
-  action.append(details);
+  const view=node('button',t('View notes')+' ('+items.length+')','secondary view-observations');
+  view.type='button';
+  view.dataset.observationId=items[0].recordId;
+  view.setAttribute('aria-haspopup','dialog');
+  view.onclick=()=>openObservationDetails(items.includes(active)?active:items[0],view);
+  action.append(view);
   row.append(action);
   return row;
  }
  for(const [key,items] of groups.slice(offset,offset+RECORDS_PER_PAGE)){
   if(!groupByInfant){
-   body.append(renderDateRow(key,items));
+   body.append(renderDateRow(items));
    continue;
   }
   const days=recordGroups(items);
-  const dayRows=days.map(([dayKey,notes])=>renderDateRow(dayKey,notes));
+  const dayRows=days.map(([,notes])=>renderDateRow(notes));
   const groupRow=node('tr',undefined,'infant-group');
   const groupCell=node('td');
   groupCell.colSpan=9;
@@ -275,6 +248,17 @@ function render(){
  else $('#source-context').textContent=`${r.manualEdits?t('Manually edited')+' · ':''}${r.filename} · ${r.sourceLine===undefined?'':t('Source line')+' '+r.sourceLine+' · '}${r.shift?`${t('Shift')} ${r.shift}`:t('Shift not documented')}`;
  $('#original-note-panel').hidden=!r.sourceText;
  $('#source-text').value=r.sourceText;
+ const noteSelect=$('#daily-note-select');
+ const dailyNotes=r.infant
+  ?records.filter(item=>item.infant===r.infant&&(item.date||null)===(r.date||null))
+  :[r];
+ $('#daily-note-picker').hidden=dailyNotes.length<2;
+ noteSelect.replaceChildren(...dailyNotes.map((item,index)=>{
+  const option=node('option',t('Note')+' '+(index+1)+' · '+(item.mergedFrom?t('Merged observation'):item.filename));
+  option.value=item.recordId;
+  return option;
+ }));
+ noteSelect.value=r.recordId;
  const details=$('#extracted-fields');details.replaceChildren();
  for(const [field,label] of Object.entries(labels)){
   const item=node('article',undefined,'extracted-field');item.append(node('h3',t(label)),node('p',fieldValue(r,field),r[field]===null?'missing-value':'extracted-value'));
@@ -296,6 +280,12 @@ function openObservationDetails(record,trigger){
  observationDialog.showModal();
  observationDialog.querySelector('.observation-content').scrollTop=0;
 }
+$('#daily-note-select').onchange=event=>{
+ selectedRecordId=event.currentTarget.value;
+ $('#observation-message').textContent='';
+ $('#original-note-panel').open=false;
+ render();
+};
 $('#close-observation').onclick=()=>observationDialog.close();
 observationDialog.addEventListener('close',()=>{
  if(observationDialog.open)return;

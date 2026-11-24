@@ -2,7 +2,9 @@
 // UI language only is persisted. Assessment data is never stored here.
 const translations = {
   "Note": "記錄",
-  "Full text": "完整內容",
+  "Check source": "請核對來源",
+  "View notes": "查看記錄",
+  "Observation note": "觀察記錄",
   "Close": "關閉",
   "Case ID": "個案代碼",
   "Birth GA": "出生週數",
