@@ -126,8 +126,13 @@ fileDropZone.addEventListener('drop', event => {
 });
 $('#clear-source').onclick=()=>{if(records.length&&!confirm(t('Clear all imported documents and extracted results?')))return;importGeneration++;records.splice(0);expandedInfants.clear();selectedRecordId=null;observationDialog.close();recordPage=0;$('#record-search').value='';lastImportSummary=null;importItems.splice(0);$('#source-file').disabled=false;$('#source-file').value='';$('#source-text').value='';$('#import-files').replaceChildren();$('#import-file-details').hidden=true;$('#import-issues').replaceChildren();$('#import-issues').hidden=true;$('#import-status').textContent='';$('#print-report').replaceChildren();render();};
 window.addEventListener('languagechange',()=>{if(lastImportSummary)renderImportStatus();else $('#import-status').textContent=translateText($('#import-status').textContent);importItems.forEach(renderImportItem);});
-function buildReport(){
- const report=$('#print-report');report.replaceChildren();const r=activeRecord();if(!r)return report;
+function buildReport(observations=[activeRecord()]){
+ const report=$('#print-report');
+ report.replaceChildren();
+ for(const record of observations.filter(Boolean))appendObservationReport(report,record);
+ return report;
+}
+function appendObservationReport(report,r){
  const clip=(value,max)=>{const chars=Array.from(String(value??''));return chars.length>max?chars.slice(0,max-1).join('')+'…':chars.join('');};
  const clinical=PREMII_FIELDS.filter(k=>!['infant','date','shift','start','end'].includes(k));
  const snippets=new Map();
@@ -188,12 +193,11 @@ function buildReport(){
    'This is an adapted research summary, not the original licensed PREMII questionnaire. No diagnostic recommendation or total score is generated.'
   ])list.append(node('li',t(text)));notes.append(list);}
  }
- return report;
 }
 const pdfDialog=$('#pdf-dialog');
-const pdfInfant=$('#pdf-infant');
 const pdfObservation=$('#pdf-observation');
-let pdfGroups=[];
+const pdfSubmit=$('#print-selected-pdf');
+const pdfPicker=infantExportPicker($('#pdf-export-infants'),$('#pdf-export-all'),()=>renderPdfObservations());
 
 function pdfChoice(label,value){
  const option=node('option',label);
@@ -201,40 +205,45 @@ function pdfChoice(label,value){
  return option;
 }
 
-function renderPdfObservations(preferredId){
- const notes=pdfGroups[Number(pdfInfant.value)]?.[1]??[];
- pdfObservation.replaceChildren(...notes.map((record,index)=>{
+function renderPdfObservations(preferredId=pdfObservation.value||selectedRecordId){
+ const groups=pdfPicker.selected();
+ const notes=groups.length===1?groups[0][1]:[];
+ const choices=notes.map((record,index)=>{
   const date=record.date||t('Date not documented');
   const shift=record.shift?t('Shift')+' '+record.shift:t('Shift not documented');
   const source=record.mergedFrom?t('Merged observation'):[record.filename,record.sourceLine?t('Source line')+' '+record.sourceLine:''].filter(Boolean).join(' · ');
   return pdfChoice([date,t('Note')+' '+(index+1),shift,source].join(' · '),record.recordId);
- }));
+ });
+ if(notes.length>1)choices.unshift(pdfChoice(t('All observations'),'all'));
+ pdfObservation.replaceChildren(...choices);
  if(notes.some(record=>record.recordId===preferredId))pdfObservation.value=preferredId;
  $('#pdf-observation-field').hidden=notes.length<2;
+ pdfObservation.required=notes.length>1;
+ $('#pdf-batch-note').hidden=groups.length<2;
+ pdfSubmit.disabled=!groups.length;
 }
 
 $('#export-pdf').onclick=()=>{
  if(!records.length)return;
- pdfGroups=recordGroups(records,false);
- pdfInfant.replaceChildren(...pdfGroups.map(([,notes],index)=>
-  pdfChoice(notes[0].infant??t('Infant ID not documented'),String(index))
- ));
- const current=pdfGroups.findIndex(([,notes])=>notes.some(record=>record.recordId===selectedRecordId));
- if(current>=0)pdfInfant.value=String(current);
- renderPdfObservations(selectedRecordId);
+ pdfPicker.render(recordGroups(records,false),selectedRecordId);
  pdfDialog.showModal();
 };
-pdfInfant.onchange=()=>renderPdfObservations();
 $('#cancel-pdf').onclick=()=>pdfDialog.close();
+pdfDialog.addEventListener('close',()=>{if(!pdfDialog.open)pdfPicker.render([]);});
 $('#pdf-form').onsubmit=event=>{
  event.preventDefault();
- const id=pdfObservation.value;
- if(!records.some(record=>record.recordId===id))return;
- selectedRecordId=id;
+ const groups=pdfPicker.selected();
+ const notes=groups.flatMap(([,items])=>items);
+ const selectedIds=new Set(notes.map(record=>record.recordId));
+ const selected=groups.length===1&&pdfObservation.value!=='all'
+  ?notes.filter(record=>record.recordId===pdfObservation.value)
+  :exportableRecords().filter(record=>selectedIds.has(record.recordId));
+ if(!selected.length)return;
+ if(selected.length===1)selectedRecordId=selected[0].recordId;
  pdfDialog.close();
  render();
- buildReport();
- notify(t('Choose Save as PDF in the print dialog. The compact report uses one or two A4 pages.'));
+ buildReport(selected);
+ notify(t('Choose Save as PDF in the print dialog.'));
  window.print();
 };
 

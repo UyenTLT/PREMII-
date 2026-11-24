@@ -4,15 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PREMII · File-based assessment</title>
-    <link rel="stylesheet" href="style.css?v=infant-export-1" />
-    <script src="i18n.js?v=infant-export-1" defer></script>
+    <link rel="stylesheet" href="style.css?v=multi-infant-export-1" />
+    <script src="i18n.js?v=multi-infant-export-1" defer></script>
     <script src="suggestions.js?v=fio2-1" defer></script>
     <script src="extraction.js?v=fio2-short-settings-1" defer></script>
     <script src="vendor/jszip.min.js" defer></script>
     <script src="spreadsheet.js?v=fio2-workspace-2" defer></script>
-    <script src="app.js?v=infant-export-1" defer></script>
+    <script src="app.js?v=multi-infant-export-1" defer></script>
     <script src="vendor/mammoth.browser.min.js" defer></script>
-    <script src="documents.js?v=fio2-workspace-2" defer></script>
+    <script src="documents.js?v=multi-infant-export-1" defer></script>
     <script src="database.js?v=fio2-workspace-2" defer></script>
   </head>
   <body>
@@ -254,8 +254,11 @@
     <dialog id="file-export-dialog" aria-labelledby="file-export-title">
       <form id="file-export-form">
         <h2 id="file-export-title">Export observations</h2>
-        <label for="file-export-infant">Select Infant ID</label>
-        <select id="file-export-infant" required autofocus></select>
+        <fieldset class="export-infant-picker">
+          <legend>Select Infant IDs</legend>
+          <label class="export-infant-option"><input id="file-export-all" type="checkbox" autofocus /> Select all</label>
+          <div id="file-export-infants" class="export-infant-list"></div>
+        </fieldset>
         <div class="editor-actions">
           <button id="cancel-file-export" type="button" class="secondary">Cancel</button>
           <button id="download-selected-file" type="submit" disabled>Download</button>
@@ -265,8 +268,12 @@
     <dialog id="pdf-dialog" aria-labelledby="pdf-title">
       <form id="pdf-form">
         <h2 id="pdf-title">Export PDF</h2>
-        <label for="pdf-infant">Select Infant ID</label>
-        <select id="pdf-infant" required></select>
+        <fieldset class="export-infant-picker">
+          <legend>Select Infant IDs</legend>
+          <label class="export-infant-option"><input id="pdf-export-all" type="checkbox" autofocus /> Select all</label>
+          <div id="pdf-export-infants" class="export-infant-list"></div>
+        </fieldset>
+        <p id="pdf-batch-note" class="muted" hidden>All observations for selected infants will be included.</p>
         <div id="pdf-observation-field">
           <label for="pdf-observation">Select observation</label>
           <select id="pdf-observation" required></select>

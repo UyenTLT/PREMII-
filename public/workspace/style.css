@@ -144,7 +144,7 @@ footer { flex-wrap: wrap; gap: 8px; color: #5b7167; }
 #observation-editor-error:not(:empty) { color: #8c3828; }
 
 #pdf-dialog, #file-export-dialog { width: min(560px, calc(100% - 24px)); }
-#pdf-dialog select, #file-export-dialog select { margin-bottom: 12px; min-width: 0; }
+#pdf-dialog select { margin-bottom: 12px; min-width: 0; }
 
 
 #results-section {
@@ -183,3 +183,10 @@ footer { flex-wrap: wrap; gap: 8px; color: #5b7167; }
 .observation-content .notice { margin-bottom: 14px; }
 #observation-message:empty { display: none; }
 #original-note-panel { margin-top: 16px; }
+
+
+.export-infant-picker { margin: 12px 0; min-inline-size: 0; border: 1px solid #dbe4e0; border-radius: 8px; padding: 8px 12px; }
+.export-infant-picker legend { color: #416453; font-weight: 650; font-size: 12px; }
+.export-infant-list { max-height: min(40vh, 260px); overflow: auto; border-top: 1px solid #dbe4e0; margin-top: 5px; }
+.export-infant-option { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; font-size: 13px; overflow-wrap: anywhere; }
+.export-infant-option input { flex: none; margin: 3px 0 0; }

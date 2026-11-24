@@ -383,12 +383,47 @@ function downloadCsv(recordsToExport,infant){
  download('\uFEFF'+[columns,...rows].map(row=>row.map(escape).join(',')).join('\r\n'),'text/csv;charset=utf-8','csv',infant);
 }
 
+function infantExportPicker(list,selectAll,onChange){
+ let groups=[];
+ const selected=()=>Array.from(list.querySelectorAll('input:checked'),input=>groups[Number(input.value)]);
+ function sync(){
+  const count=selected().length;
+  selectAll.checked=groups.length>0&&count===groups.length;
+  selectAll.indeterminate=count>0&&count<groups.length;
+  onChange();
+ }
+ list.onchange=sync;
+ selectAll.onchange=()=>{
+  for(const input of list.querySelectorAll('input'))input.checked=selectAll.checked;
+  sync();
+ };
+ return {
+  selected,
+  render(nextGroups,initialRecordId){
+   groups=nextGroups;
+   list.replaceChildren(...groups.map(([,items],index)=>{
+    const {infant,date,filename}=items[0];
+    const label=infant??[t('Infant ID not documented'),date,filename].filter(Boolean).join(' · ');
+    const option=node('label',undefined,'export-infant-option');
+    const input=node('input');
+    input.type='checkbox';
+    input.value=String(index);
+    input.checked=items.some(record=>record.recordId===initialRecordId);
+    option.append(input,node('span',label));
+    return option;
+   }));
+   sync();
+  }
+ };
+}
+
 const exportDialog=$('#file-export-dialog');
-const exportInfant=$('#file-export-infant');
 const exportSubmit=$('#download-selected-file');
 const exportFormats={json:'Export JSON',csv:'Export CSV',xlsx:'Export Excel (.xlsx)'};
+const fileExportPicker=infantExportPicker($('#file-export-infants'),$('#file-export-all'),()=>{
+ exportSubmit.disabled=!fileExportPicker.selected().length;
+});
 let exportFormat;
-let exportGroups=[];
 let exportTrigger;
 
 function openFileExport(format,trigger){
@@ -396,29 +431,15 @@ function openFileExport(format,trigger){
  const groups=recordGroups(exportableRecords(),false);
  if(!groups.length)return;
  exportFormat=format;
- exportGroups=groups;
  exportTrigger=trigger;
  $('#file-export-title').textContent=t(exportFormats[format]);
- const placeholder=node('option',t('Choose an Infant ID'));
- placeholder.value='';
- placeholder.disabled=true;
- exportInfant.replaceChildren(placeholder,...groups.map(([,items],index)=>{
-  const {infant,date,filename}=items[0];
-  const label=infant??[t('Infant ID not documented'),date,filename].filter(Boolean).join(' · ');
-  const option=node('option',label);
-  option.value=String(index);
-  return option;
- }));
- exportInfant.value='';
- exportSubmit.disabled=true;
+ fileExportPicker.render(groups);
  exportDialog.showModal();
 }
-exportInfant.onchange=()=>{exportSubmit.disabled=exportInfant.value==='';};
 $('#cancel-file-export').onclick=()=>exportDialog.close();
 exportDialog.addEventListener('close',()=>{
  if(exportDialog.open)return;
- exportGroups=[];
- exportInfant.replaceChildren();
+ fileExportPicker.render([]);
  exportTrigger?.focus({preventScroll:true});
  exportTrigger=null;
 });
@@ -430,10 +451,10 @@ for(const [id,format] of [
 }
 $('#file-export-form').onsubmit=async event=>{
  event.preventDefault();
- if(exportInfant.value==='')return;
- const recordsToExport=exportGroups[Number(exportInfant.value)]?.[1];
- if(!recordsToExport?.length)return;
- const infant=recordsToExport[0].infant;
+ const selected=fileExportPicker.selected();
+ if(!selected.length)return;
+ const recordsToExport=selected.flatMap(([,items])=>items);
+ const infant=selected.length===1?recordsToExport[0].infant:null;
  const format=exportFormat;
  const trigger=exportTrigger;
  exportDialog.close();
