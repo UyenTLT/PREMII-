@@ -1,6 +1,7 @@
 'use strict';
 // UI language only is persisted. Assessment data is never stored here.
 const translations = {
+  "Workspace with database": "含資料庫的工作區",
   "Select a note for PDF": "選擇要匯出 PDF 的記錄",
   "observations in batch exports": "筆觀察記錄將批次匯出",
   "Group by Infant ID": "依嬰兒代碼分組",
