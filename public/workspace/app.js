@@ -161,7 +161,7 @@ function eventEvidence(record){
  }
  return [...new Set(evidence)];
 }
-function appendSummaryCell(row,items,valuesFor){
+function appendSummaryCell(row,items,valuesFor,{preview=true}={}){
  const values=new Set();
  for(const item of items){
   for(const value of valuesFor(item).filter(Boolean)){
@@ -171,12 +171,12 @@ function appendSummaryCell(row,items,valuesFor){
  const cell=node('td');
  if(values.size){
   const entries=[...values];
-  const preview=entries.slice(0,2).map(value=>{
+  const display=preview?entries.slice(0,2).map(value=>{
    const characters=Array.from(value);
    return characters.length>100?characters.slice(0,99).join('').trimEnd()+'…':value;
-  });
+  }):entries;
   const list=node('ul',undefined,'case-values');
-  for(const value of preview)list.append(node('li',value));
+  for(const value of display)list.append(node('li',value));
   cell.append(list);
  }else{
   cell.textContent='—';
@@ -234,7 +234,7 @@ function render(){
   row.append(dateCell);
   appendSummaryCell(row,observations,item=>[
    [codedSummary(item,'RES1'),codedSummary(item,'RES2')].filter(Boolean).join('\n')
-  ]);
+  ],{preview:false});
   appendFio2Cell(row,observations);
   appendSummaryCell(row,observations,item=>[codedSummary(item,'FEED1')]);
   appendSummaryCell(row,observations,item=>[item.WEIGHT1==null?'':[
