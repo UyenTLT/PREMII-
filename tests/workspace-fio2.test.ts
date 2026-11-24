@@ -42,3 +42,38 @@ test("Workspace extracts FiO₂ from varied ventilator settings across infants a
     { infant: "SYN-02", date: "2023-06-16", oa: null, fio2: [] },
   ]);
 });
+
+test("Workspace links explicitly dated settings to blank rows for the same infant", () => {
+  const source = [
+    "Infant ID: SYN-01",
+    "2024/01/21   08:00",
+    "SpO2 95%",
+    "2024/01/22   08:00",
+    "Weight: 1200 g",
+    "2024/01/23   08:00",
+    "FiO2: 30%",
+    "2024/01/24   08:00",
+    "Weight: 1220 g",
+    "2024/01/25   08:00",
+    "Venti: NIMV 1/22[25% 20 14 5] CPAP 1/23-24[21% 5]",
+    "Infant ID: SYN-02",
+    "2024/01/22   08:00",
+    "Weight: 1250 g",
+  ].join("\n");
+  const rows = browser.extractFileRecords(source, "synthetic.txt");
+  const linked = Array.from(rows, (row: any) => ({
+    oa: row.OA,
+    readings: Array.from(row.fio2Readings, (reading: any) => [
+      reading.percent,
+      reading.documentedIn ?? null,
+    ]),
+  }));
+  assert.deepEqual(linked, [
+    { oa: null, readings: [] },
+    { oa: null, readings: [[25, "2024-01-25"]] },
+    { oa: "2", readings: [[30, null]] },
+    { oa: null, readings: [[21, "2024-01-25"]] },
+    { oa: null, readings: [[25, null], [21, null]] },
+    { oa: null, readings: [] },
+  ]);
+});

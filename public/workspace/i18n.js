@@ -7,6 +7,7 @@ const translations = {
   "Observation note": "觀察記錄",
   "Close": "關閉",
   "Documented FiO₂ readings": "記錄的吸入氧氣濃度",
+  "Documented in note from": "記錄來源日期",
   "Settings from": "設定日期",
   "Case ID": "個案代碼",
   "Birth GA": "出生週數",

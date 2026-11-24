@@ -85,10 +85,10 @@ const numbers: Record<string, readonly [number, number, boolean]> = {
 function fio2Readings(input: unknown) {
   if (input == null) return [];
   if (!Array.isArray(input) || input.length > 3000) return null;
-  const readings = new Map<string, { percent: number; referenceDate?: string }>();
+  const readings = new Map<string, { percent: number; referenceDate?: string; documentedIn?: string }>();
   for (const item of input) {
     if (!item || typeof item !== "object" || Array.isArray(item)) return null;
-    const { percent, referenceDate } = item;
+    const { percent, referenceDate, documentedIn } = item;
     if (typeof percent !== "number" || !Number.isFinite(percent) || percent < 21 || percent > 100)
       return null;
     if (referenceDate != null) {
@@ -102,8 +102,16 @@ function fio2Readings(input: unknown) {
       if (!Number.isFinite(+date) || date.toISOString().slice(0, 10) !== iso)
         return null;
     }
-    const date = referenceDate ?? undefined;
-    readings.set(JSON.stringify([percent, date]), date ? { percent, referenceDate: date } : { percent });
+    if (documentedIn != null) {
+      if (referenceDate != null || typeof documentedIn !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(documentedIn))
+        return null;
+      const date = new Date(documentedIn + "T00:00:00Z");
+      if (!Number.isFinite(+date) || date.toISOString().slice(0, 10) !== documentedIn)
+        return null;
+    }
+    const reading = referenceDate ? { percent, referenceDate } :
+      documentedIn ? { percent, documentedIn } : { percent };
+    readings.set(JSON.stringify(reading), reading);
   }
   return [...readings.values()];
 }

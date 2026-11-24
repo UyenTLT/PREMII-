@@ -87,7 +87,7 @@ function ventilatorFiO2(text,noteDate){
    const reference=endText??startText;
    const referenceDate=noteDate&&start<=noteDate&&noteDate<=end?null:
     reference.split(/[/-]/).length===3?end:`${Number(end.slice(5,7))}/${Number(end.slice(8,10))}`;
-   readings.push({percent,evidence,referenceDate});
+   readings.push({percent,evidence,referenceDate,settingStart:start,settingEnd:end});
   }
  }
  return readings;
@@ -96,9 +96,38 @@ function isQuestionnaireTemplate(text){
  const identified=/(?:研究\s*ID|Study\s*ID|Infant\s*ID)\s*[:：]\s*[^\s】]+/i.test(text);
  return !identified&&(/PREMature Infant Index Questionnaire/i.test(text)&&/Instructions:/i.test(text)||/RES1[\s\S]*FEED1/.test(text)&&/請選擇/.test(text));
 }
+function linkDatedFiO2(records){
+ const cases=new Map();
+ for(const record of records){
+  if(!record.infant||!record.date)continue;
+  if(!cases.has(record.infant))cases.set(record.infant,{days:new Map(),settings:new Map()});
+  const {days,settings}=cases.get(record.infant);
+  if(!days.has(record.date))days.set(record.date,[]);
+  days.get(record.date).push(record);
+  for(const reading of record.fio2Readings){
+   if(!reading.settingStart||!reading.settingEnd)continue;
+   const key=JSON.stringify([reading.percent,reading.settingStart,reading.settingEnd]);
+   const source=settings.get(key);
+   if(!source||record.date<source.documentedIn)settings.set(key,{...reading,documentedIn:record.date});
+  }
+ }
+ for(const {days,settings} of cases.values()){
+  for(const [date,notes] of days){
+   if(notes.some(note=>note.OA!=null||note.fieldStatus.OA==='conflicting'||note.fio2Readings.some(reading=>!reading.referenceDate)))continue;
+   const linked=new Map();
+   for(const {percent,settingStart,settingEnd,documentedIn,evidence} of settings.values()){
+    if(settingStart<=date&&date<=settingEnd&&documentedIn!==date&&!linked.has(percent)){
+     linked.set(percent,{percent,documentedIn,evidence});
+    }
+   }
+   notes[0].fio2Readings.push(...linked.values());
+  }
+ }
+ return records;
+}
 function extractFileRecords(text,filename,fileId='file-1'){
  if(isQuestionnaireTemplate(text))return [];
- return segmentFile(text).map((segment,index)=>{
+ const records=segmentFile(text).map((segment,index)=>{
   const r=Object.fromEntries(PREMII_FIELDS.map(k=>[k,null]));
   r.infant=segment.infant;r.date=segment.date;r.recordId=`${fileId}-${index+1}`;r.patientKey=`${fileId}-${segment.caseIndex}`;r.noteTime=segment.noteTime;
   r.filename=filename;r.sourceLine=segment.line;r.extractionStatus='automated-unverified';r.schemaVersion='premii-file-observations-v2';r.evidence={};r.fieldStatus=Object.fromEntries(PREMII_FIELDS.map(k=>[k,'not-found']));
@@ -131,5 +160,6 @@ function extractFileRecords(text,filename,fileId='file-1'){
   r.sourceText=segment.text;
   return r;
  });
+ return linkDatedFiO2(records);
 }
 if(typeof module!=='undefined')module.exports={PREMII_FIELDS,validDate,segmentFile,currentObservations,isQuestionnaireTemplate,extractFileRecords};

@@ -258,6 +258,7 @@ try {
       fio2Readings: [
         { percent: 25 },
         { percent: 38, referenceDate: "4/30", evidence: "not persisted" },
+        { percent: 21, documentedIn: "2026-11-21" },
         { percent: 25 },
       ],
     },
@@ -286,6 +287,7 @@ try {
     assert.deepEqual(record.observation.fio2Readings, [
       { percent: 25 },
       { percent: 38, referenceDate: "4/30" },
+      { percent: 21, documentedIn: "2026-11-21" },
     ]);
   }
   assert.deepEqual((await api("workspace", null, 200, entry)).data.records, []);

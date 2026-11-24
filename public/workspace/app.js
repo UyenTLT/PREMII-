@@ -97,16 +97,17 @@ function codedSummary(record,field){
 }
 function exportFiO2(record){
  const unique=new Map();
- for(const {percent,referenceDate} of record.fio2Readings??[]){
-  const reading=referenceDate?{percent,referenceDate}:{percent};
+ for(const {percent,referenceDate,documentedIn} of record.fio2Readings??[]){
+  const reading=referenceDate?{percent,referenceDate}:documentedIn?{percent,documentedIn}:{percent};
   unique.set(JSON.stringify(reading),reading);
  }
  return [...unique.values()];
 }
 function fio2Text(record,localize=false){
  const label=localize?t('Settings from'):'Settings from';
- return exportFiO2(record).map(({percent,referenceDate})=>
-  referenceDate?`${percent}% (${label} ${referenceDate})`:`${percent}%`
+ const noteLabel=localize?t('Documented in note from'):'Documented in note from';
+ return exportFiO2(record).map(({percent,referenceDate,documentedIn})=>
+  referenceDate?`${percent}% (${label} ${referenceDate})`:documentedIn?`${percent}% (${noteLabel} ${documentedIn})`:`${percent}%`
  ).join(' · ');
 }
 const fio2ExportLabel='Documented FiO₂ readings';
@@ -115,8 +116,9 @@ function fio2Summary(record){
  const explicitCode=/\bOA\s*[:=：]/i.test(record.evidence?.OA??'');
  const showRecordedCode=explicitCode||record.mergedFrom||record.manualEdits?.OA||record.fieldStatus?.OA==='conflicting';
  if(!readings.length)return [codedSummary(record,'OA')];
- const values=readings.map(({percent,referenceDate})=>{
+ const values=readings.map(({percent,referenceDate,documentedIn})=>{
   if(referenceDate)return `${percent}% · ${t('Settings from')} ${referenceDate}`;
+  if(documentedIn)return `${percent}% · ${t('Documented in note from')} ${documentedIn}`;
   const category=record.RES1==='2'||showRecordedCode?null:oxygenCategory(percent);
   return category===null?`${percent}%`:`${percent}% (OA = ${category})`;
  });
@@ -285,6 +287,11 @@ function render(){
   if(r.evidence[field]){
    if(r.manualEdits?.[field])item.append(node('p',t('Original extraction evidence'),'muted'));
    item.append(node('blockquote',r.evidence[field],'source-evidence'));
+  }
+  if(field==='OA'){
+   const linkedEvidence=new Set((r.fio2Readings??[]).filter(reading=>reading.documentedIn&&reading.evidence)
+    .map(reading=>`${reading.documentedIn} · ${reading.evidence}`));
+   for(const quote of linkedEvidence)item.append(node('blockquote',quote,'source-evidence'));
   }
   details.append(item);
  }
