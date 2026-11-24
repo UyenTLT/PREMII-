@@ -4,13 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PREMII · File-based assessment</title>
-    <link rel="stylesheet" href="style.css?v=pdf-infant-flow-1" />
-    <script src="i18n.js?v=pdf-infant-flow-1" defer></script>
+    <link rel="stylesheet" href="style.css?v=daily-summary-1" />
+    <script src="i18n.js?v=daily-summary-1" defer></script>
     <script src="suggestions.js?v=20261117-excel" defer></script>
     <script src="extraction.js?v=20261117-excel" defer></script>
     <script src="vendor/jszip.min.js" defer></script>
     <script src="spreadsheet.js?v=full-observation-labels" defer></script>
-    <script src="app.js?v=full-observation-labels" defer></script>
+    <script src="app.js?v=daily-summary-1" defer></script>
     <script src="vendor/mammoth.browser.min.js" defer></script>
     <script src="documents.js?v=pdf-infant-flow-1" defer></script>
     <script src="database.js?v=batch-save-1" defer></script>
@@ -128,7 +128,6 @@
         <div id="record-search-panel" hidden>
           <label for="record-search">Search by Infant ID</label>
           <input id="record-search" type="search" autocomplete="off" />
-          <label class="group-toggle"><input id="group-by-infant" type="checkbox" checked /> Group by Infant ID</label>
           <p id="record-search-count" class="muted" role="status"></p>
         </div>
         <p id="no-results" class="empty" hidden>No observations match this Infant ID.</p>
@@ -139,11 +138,14 @@
           <table id="records-table">
             <thead>
               <tr>
-                <th>Infant ID</th>
-                <th>Date and time</th>
-                <th>Source file</th>
-                <th>Shift</th>
-                <th>Documented items</th>
+                <th>Case ID</th>
+                <th>Birth GA</th>
+                <th>Assessment date</th>
+                <th>Respiratory support</th>
+                <th>FiO₂ (OA code)</th>
+                <th>Feeding (FEED1)</th>
+                <th>Weight on date</th>
+                <th>Apnea, bradycardia, desaturation, or caffeine evidence</th>
                 <th>Details</th>
               </tr>
             </thead>
@@ -159,9 +161,7 @@
           </button>
         </div>
         <p class="muted">
-          Study IDs and dated notes are separated when explicit headings exist.
-          Note timestamps are not assumed to be shift boundaries. Unknown
-          infant, date or shift remains undocumented.
+          Each row summarizes one assessment date per infant. Open Details to review the original notes.
         </p>
       </section>
       <section id="results-section" hidden>
