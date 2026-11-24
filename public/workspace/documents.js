@@ -172,13 +172,13 @@ function buildReport(){
  for(const [label,keys] of [['Before first assessment',['baselineWeight','baselineDate','baselineTime']],['Lowest documented in this note',['WEIGHT1','WEIGHT2','WEIGHT3']]]){const row=node('tr');row.append(node('th',t(label)),...keys.map(k=>node('td',value(k))));wb.append(row);}weightTable.append(wb);weight.append(weightTable);
  const weightNotes=node('div',undefined,'pdf-inline');weightNotes.append(node('span',`${t('First assessment')}: ${value('first')}`),node('span',`${t('Weighed during shift')}: ${value('weighed')}`));weight.append(weightNotes);
  first.append(node('p',t('Legend: — Not found in source · N/A Not applicable · Conflict Unresolved source values. Missing is not normal, zero or No.'),'pdf-legend'));
- first.append(node('p',t('Only the recorded response is shown. Item codes in brackets are not a validated total score. Source note times are not shift boundaries.'),'pdf-note'));
+ first.append(node('p',t('Only recorded responses are shown. Source note times are not shift boundaries.'),'pdf-note'));
  if(snippets.size){
   const second=separateEvidence?page('Source evidence & interpretation',2):first;
   const evidenceSection=section(second,'Source evidence');evidenceSection.append(node('p',t('Short source excerpts supporting the selected observation. Original language is preserved.'),'pdf-note'));
   const limit=separateEvidence?8:4;
-  const table=node('table',undefined,'pdf-evidence');const head=node('thead'),tr=node('tr');for(const label of ['PREMII fields','Source excerpt'])tr.append(node('th',t(label)));head.append(tr);table.append(head);const body=node('tbody');
-  for(const [quote,fields] of [...snippets].slice(0,limit)){const row=node('tr');row.append(node('th',clip(fields.join(', '),45)),node('td',clip(quote.replace(/\s+/g,' '),separateEvidence?120:90)));body.append(row);}table.append(body);evidenceSection.append(table);
+  const table=node('table',undefined,'pdf-evidence');const head=node('thead'),tr=node('tr');for(const label of ['Observation fields','Source excerpt'])tr.append(node('th',t(label)));head.append(tr);table.append(head);const body=node('tbody');
+  for(const [quote,fields] of [...snippets].slice(0,limit)){const row=node('tr');row.append(node('th',fields.map(field=>t(editorLabels[field])).join(' · ')),node('td',clip(quote.replace(/\s+/g,' '),separateEvidence?120:90)));body.append(row);}table.append(body);evidenceSection.append(table);
   if(snippets.size>limit)second.append(node('p',`${snippets.size-limit} ${t('additional excerpts are available in JSON export.')}`,'pdf-note'));
   if(separateEvidence){const notes=section(second,'Interpretation notes');const list=node('ul');for(const text of [
    'Automatic extraction has not been clinically verified. Review the original source before clinical use.',

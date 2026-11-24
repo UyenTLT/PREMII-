@@ -27,10 +27,16 @@ const codedLabels = {
  shift: {1:'Shift 1',2:'Shift 2',3:'Shift 3',4:'Shift 4'}
 };
 function missing(r,field){if(r.fieldStatus?.[field]==='manually-edited')return t('Not documented');return t(r.fieldStatus?.[field]==='not-applicable'?'Not applicable':r.fieldStatus?.[field]==='conflicting'?'Conflicting source values':'Not found in source');}
+function readableValue(field,value,localize=false){
+ if(value===null||value===undefined||value==='')return value;
+ const description=options[field]?.[Number(value)]??codedLabels[field]?.[value];
+ if(!description)return value;
+ if(localize)return t(description).replaceAll('nCPAP',document.documentElement.lang==='zh-Hant'?'鼻式持續氣道正壓':'nasal continuous positive airway pressure');
+ return description.replaceAll('nCPAP','nasal continuous positive airway pressure');
+}
 function fieldValue(r,field){
  if(r[field]===null||r[field]===undefined||r[field]==='')return missing(r,field);
- if(options[field])return t(options[field][Number(r[field])])+` [${r[field]}]`;
- return codedLabels[field]?t(codedLabels[field][r[field]]??r[field]):String(r[field]);
+ return String(readableValue(field,r[field],true));
 }
 function node(tag,text,className){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(className)el.className=className;return el;}
 function activeRecord(){return records.find(r=>r.recordId===selectedRecordId);}
@@ -170,7 +176,7 @@ function render(){
  $('#source-text').value=r.sourceText;
  const details=$('#extracted-fields');details.replaceChildren();
  for(const [field,label] of Object.entries(labels)){
-  const item=node('article',undefined,'extracted-field');item.append(node('p',field,'eyebrow'),node('h3',t(label)),node('p',fieldValue(r,field),r[field]===null?'missing-value':'extracted-value'));
+  const item=node('article',undefined,'extracted-field');item.append(node('h3',t(label)),node('p',fieldValue(r,field),r[field]===null?'missing-value':'extracted-value'));
   if(r.manualEdits?.[field])item.append(node('p',t('Manually edited'),'edit-marker'));
   if(r.evidence[field]){
    if(r.manualEdits?.[field])item.append(node('p',t('Original extraction evidence'),'muted'));
@@ -180,9 +186,31 @@ function render(){
  }
 }
 function download(content,type,ext){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=`premii-${new Date().toISOString().slice(0,10)}.${ext}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-function exportRecords(){return exportableRecords().map(({sourceText,...r})=>r);}
-$('#export-json').onclick=()=>download(JSON.stringify({instrument:'PREMII',totalScoreCalculated:false,mode:'file-only',records:exportRecords()},null,2),'application/json','json');
-$('#export-csv').onclick=()=>{const rows=exportableRecords();const keys=PREMII_FIELDS;const esc=v=>'"'+(typeof v==='object'&&v!==null?JSON.stringify(v):String(v??'')).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';download('\uFEFF'+[keys,...rows.map(r=>keys.map(k=>r[k]))].map(row=>row.map(esc).join(',')).join('\r\n'),'text/csv;charset=utf-8','csv');};
+function exportRecords(){
+ return exportableRecords().map(record=>{
+  const output={};
+  for(const field of editorFields)output[exportColumnLabel(field)]=readableValue(field,record[field]??null);
+  for(const field of ['recordId','patientKey','filename','sourceLine','extractionStatus','schemaVersion','mergedFrom']){
+   if(record[field]!==undefined)output[field]=record[field];
+  }
+  for(const field of ['evidence','fieldStatus','fieldSources']){
+   if(record[field])output[field]=Object.fromEntries(Object.entries(record[field]).map(([key,value])=>[exportColumnLabel(key),value]));
+  }
+  if(record.manualEdits)output.manualEdits=Object.fromEntries(
+   Object.entries(record.manualEdits).map(([key,edit])=>[
+    exportColumnLabel(key),{...edit,originalValue:readableValue(key,edit.originalValue)}
+   ])
+  );
+  return output;
+ });
+}
+$('#export-json').onclick=()=>download(JSON.stringify({instrument:'PREMII',totalScoreCalculated:false,mode:'file-only',exportFormat:'descriptive-observations-v1',records:exportRecords()},null,2),'application/json','json');
+$('#export-csv').onclick=()=>{
+ const columns=PREMII_FIELDS.map(exportColumnLabel);
+ const rows=exportableRecords().map(record=>PREMII_FIELDS.map(key=>readableValue(key,record[key]??null)));
+ const escape=value=>'"'+String(value??'').replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';
+ download('\uFEFF'+[columns,...rows].map(row=>row.map(escape).join(',')).join('\r\n'),'text/csv;charset=utf-8','csv');
+};
 window.addEventListener('beforeunload',e=>{if(records.length){e.preventDefault();e.returnValue='';}});
 window.addEventListener('languagechange',()=>{render();localizeDOM();$('#toast').textContent=translateText($('#toast').textContent);});
 render();localizeDOM();
@@ -221,6 +249,18 @@ const editorLabels = {
  baselineWeight:'Baseline weight (g)', baselineDate:'Baseline weight date',
  baselineTime:'Baseline weight time', weighed:'Weighed during shift'
 };
+const exportColumnOverrides = {
+ infant:'Infant identifier', noteTime:'Source note time',
+ RES2:'Supplemental respiratory device',
+ RES3_1:'Greatest flow (milliliters per minute)',
+ bradyThreshold:'Bradycardia threshold (beats per minute)',
+ desatThreshold:'Desaturation threshold (percent)',
+ WEIGHT1:'Lowest documented weight in this note (grams)',
+ baselineWeight:'Baseline weight (grams)'
+};
+function exportColumnLabel(field){
+ return exportColumnOverrides[field]??editorLabels[field]??field;
+}
 const numericFields = {
  RES3_1:[0,1999.99,'any'], bradyThreshold:[1,300,1], desatThreshold:[1,100,1],
  WEIGHT1:[1,20000,1], baselineWeight:[1,20000,1],
@@ -241,7 +281,7 @@ function openObservationEditor(record, adding=false){
  const fields=$('#observation-fields');
  fields.replaceChildren();
  for(const field of editorFields){
-  const label=node('label',t(editorLabels[field])+' · '+field);
+  const label=node('label',t(editorLabels[field]));
   const choices=options[field]??codedLabels[field];
   const input=node(choices?'select':'input');
   input.name=field;
@@ -253,7 +293,7 @@ function openObservationEditor(record, adding=false){
    input.append(blank);
    for(const [value,description] of Object.entries(choices)){
     if(!description)continue;
-    const option=node('option',t(description));
+    const option=node('option',String(readableValue(field,value,true)));
     option.value=value;
     input.append(option);
    }
@@ -378,7 +418,7 @@ $('#merge-observations').onclick=()=>{
    continue;
   }
   const box=node('div',undefined,'merge-conflict');
-  const label=node('label',t(editorLabels[field])+' · '+field);
+  const label=node('label',t(editorLabels[field]));
   const select=node('select');
   select.name=field;
   select.required=true;

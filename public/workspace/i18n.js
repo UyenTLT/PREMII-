@@ -1,6 +1,8 @@
 'use strict';
 // UI language only is persisted. Assessment data is never stored here.
 const translations = {
+  "Observation fields": "觀察項目",
+  "Only recorded responses are shown. Source note times are not shift boundaries.": "僅顯示已記錄的回應。來源記錄時間並非班別起訖時間。",
   "Database": "資料庫",
   "Sign in with your PREMII Tracker account. Only observations you save are stored. Your original files stay in this browser.": "請使用 PREMII Tracker 帳戶登入。僅儲存您選擇保存的觀察記錄，原始檔案仍保留在瀏覽器。",
   "Account ID": "帳戶 ID",
