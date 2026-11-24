@@ -126,9 +126,11 @@ function appendFio2Cell(row,observations){
  const cell=node('td',undefined,'fio2-cell');
  const direct=[...new Set(observations.flatMap(fio2Summary))];
  const readings=observations.flatMap(record=>record.fio2Readings??[]);
- const linked=[...new Set(readings.filter(reading=>reading.documentedIn).map(reading=>reading.percent))]
+ const linked=readings.filter(reading=>reading.documentedIn);
+ const otherDates=readings.filter(reading=>reading.referenceDate);
+ const fallback=linked.length?linked:otherDates;
+ const values=direct.length?direct:[...new Set(fallback.map(reading=>reading.percent))]
   .sort((a,b)=>a-b).map(percent=>`${percent}%`);
- const values=direct.length?direct:linked;
  if(values.length){
   const list=node('ul',undefined,'case-values fio2-values');
   for(const value of values.slice(0,3)){
@@ -137,10 +139,9 @@ function appendFio2Cell(row,observations){
   }
   if(values.length>3)list.append(node('li',`+${values.length-3}`,'fio2-context'));
   cell.append(list);
-  if(!direct.length)cell.append(node('small',t('From other notes'),'fio2-context'));
+  if(!direct.length)cell.append(node('small',t(linked.length?'From other notes':'Settings on other dates'),'fio2-context'));
  }else{
   cell.append(node('span','—'));
-  if(readings.some(reading=>reading.referenceDate))cell.append(node('small',t('Other dates in notes'),'fio2-context'));
  }
  row.append(cell);
 }
