@@ -1,6 +1,7 @@
 'use strict';
 // UI language only is persisted. Assessment data is never stored here.
 const translations = {
+  "duplicate observations skipped": "筆重複觀察記錄已略過",
   "Preterm infant assessment": "早產兒評估",
   "Shift assessment": "每班評估",
   "Saved assessments": "已記錄評估",

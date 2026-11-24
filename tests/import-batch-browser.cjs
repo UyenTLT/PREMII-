@@ -47,6 +47,22 @@ for cells,record in zip(sheet.iter_rows(min_row=2),records):
  await page.waitForFunction(()=>!document.querySelector('#source-file').disabled);
  assert.equal(await page.locator('#record-count').innerText(),String(count+3));
  assert.match(await page.locator('#selected-note').innerText(),/DROP-001/);
+ // Identical notes are skipped across files and batches. Same infant, new date or text stays.
+ await page.selectOption('#language','en');
+ const note=(name,date,text)=>({name,mimeType:'text/plain',buffer:Buffer.from(`Study ID: DEDUP-001\nDate: ${date}\n${text}`)});
+ const original=note('original.txt','2026-11-03','On nCPAP');
+ const copy={...original,name:'copy.txt'};
+ const differentDate=note('later.txt','2026-11-04','On nCPAP');
+ const differentText=note('different.txt','2026-11-03','On nCPAP\nFiO2: 35%');
+ await page.setInputFiles('#source-file',[original,copy,differentDate,differentText]);
+ await page.waitForFunction(()=>!document.querySelector('#source-file').disabled);
+ assert.equal(await page.locator('#record-count').innerText(),String(count+6));
+ assert.match(await page.locator('#import-status').innerText(),/1 duplicate observations skipped/);
+ await page.setInputFiles('#source-file',copy);
+ await page.waitForFunction(()=>!document.querySelector('#source-file').disabled);
+ assert.equal(await page.locator('#record-count').innerText(),String(count+6));
+ assert.match(await page.locator('#import-status').innerText(),/1 duplicate observations skipped/);
+ await page.selectOption('#language','zh-Hant');
  // Clear, then verify an all-failed import never reports success or enables exports.
  page.on('dialog',d=>d.accept());await page.click('#clear-source');await page.setInputFiles('#source-file',{name:'bad.bin',mimeType:'application/octet-stream',buffer:Buffer.from('invalid')});await page.waitForFunction(()=>!document.querySelector('#source-file').disabled);assert.equal(await page.locator('#output-ready').isVisible(),false);assert.equal(await page.locator('#export-pdf').isDisabled(),true);assert.match(await page.locator('#import-status').innerText(),/未產生結果/);
  const broken=await browser.newPage();await broken.route('**/documents.js*',route=>route.abort());await broken.goto(process.env.PREMII_TEST_URL||'http://127.0.0.1:3000');assert.equal(await broken.locator('#source-file').isDisabled(),true);assert.equal(await broken.locator('#startup-warning').isVisible(),true);await broken.close();

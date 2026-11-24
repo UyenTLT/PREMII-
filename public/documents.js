@@ -4,13 +4,20 @@ let fileSequence=0;
 let pdfReader;
 let lastImportSummary=null;
 const importItems=[];
+function noteKey(record){
+ if(!record.infant)return null;
+ return JSON.stringify([
+  record.infant,record.date,record.noteTime,
+  record.sourceText.replace(/\r\n?/g,'\n').trim()
+ ]);
+}
 function renderImportItem(row){
- row.item.textContent=row.filename+' — '+(row.error?t(row.error):row.count===null?t('Reading document…'):row.count+' '+t('observations extracted'));
+ row.item.textContent=row.filename+' — '+(row.error?t(row.error):row.count===null?t('Reading document…'):row.count+' '+t('observations extracted')+(row.skipped?' · '+row.skipped+' '+t('duplicate observations skipped'):'') );
 }
 function renderImportStatus(){
  if(!lastImportSummary)return;
- const {succeeded,added,failed}=lastImportSummary;
- $('#import-status').textContent=added?`${succeeded} ${t('files imported')} · ${added} ${t('observations')} · ${failed} ${t('files failed')}`:t('No output was generated. Check the file errors above and try another supported document.');
+ const {succeeded,added,failed,skipped}=lastImportSummary;
+ $('#import-status').textContent=added||skipped?`${succeeded} ${t('files imported')} · ${added} ${t('observations')} · ${failed} ${t('files failed')}${skipped?' · '+skipped+' '+t('duplicate observations skipped'):''}`:t('No output was generated. Check the file errors above and try another supported document.');
 }
 async function readDocument(file){
  if(file.size>10*1024*1024||! /\.(txt|docx|pdf)$/i.test(file.name))throw new Error('Choose a TXT, DOCX or PDF file up to 10 MB.');
@@ -36,7 +43,8 @@ const importErrors={
 async function importDocuments(files){
  if(!files.length||$('#source-file').disabled)return;
  const generation=++importGeneration;const startCount=records.length;lastImportSummary=null;
- let succeeded=0,failed=0,firstNewRecordId=null;
+ const seenNotes=new Set(records.map(noteKey).filter(key=>key!==null));
+ let succeeded=0,failed=0,skipped=0,firstNewRecordId=null;
  $('#source-file').disabled=true;$('#import-status').textContent=t('Reading and extracting documents…');
  try{
   for(const file of files){
@@ -49,11 +57,23 @@ async function importDocuments(files){
     if(isQuestionnaireTemplate(text))throw new Error(importErrors.template);
     const extracted=extractFileRecords(text,file.name,`file-${++fileSequence}`);
     if(!extracted.length)throw new Error(importErrors.empty);
-    if(records.length+extracted.length>3000)throw new Error(importErrors.count);
-    // Avoid spreading a large batch into function arguments.
-    for(const record of extracted)records.push(record);
-    firstNewRecordId??=extracted[0]?.recordId??null;succeeded++;
-    row.count=extracted.length;renderImportItem(row);
+    const newKeys=new Set();
+    const unique=extracted.filter(record=>{
+     const key=noteKey(record);
+     if(key===null)return true;
+     if(seenNotes.has(key)||newKeys.has(key))return false;
+     newKeys.add(key);
+     return true;
+    });
+    if(records.length+unique.length>3000)throw new Error(importErrors.count);
+    for(const key of newKeys)seenNotes.add(key);
+    for(const record of unique)records.push(record);
+    firstNewRecordId??=unique[0]?.recordId??null;
+    if(unique.length)succeeded++;
+    row.count=unique.length;
+    row.skipped=extracted.length-unique.length;
+    skipped+=row.skipped;
+    renderImportItem(row);
    }catch(error){
     if(generation!==importGeneration)return;
     failed++;item.classList.add('import-error');
@@ -64,7 +84,7 @@ async function importDocuments(files){
   if(firstNewRecordId){selectedRecordId=firstNewRecordId;recordPage=Math.floor(records.findIndex(r=>r.recordId===firstNewRecordId)/RECORDS_PER_PAGE);}
   render();
   const added=records.length-startCount;
-  lastImportSummary={succeeded,added,failed};renderImportStatus();
+  lastImportSummary={succeeded,added,failed,skipped};renderImportStatus();
   if(added){$('#output-ready').scrollIntoView({behavior:'smooth',block:'start'});notify(t('Results are ready below. View the extracted fields or export the report.'));}
  }finally{if(generation===importGeneration){$('#source-file').disabled=false;$('#source-file').value='';}}
 }
