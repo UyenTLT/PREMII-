@@ -6,3 +6,12 @@ CREATE TABLE IF NOT EXISTS shifts(id TEXT PRIMARY KEY,infantId TEXT,version INTE
 CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,entity TEXT,actor TEXT,time TEXT,beforeData TEXT,afterData TEXT);
 CREATE TABLE IF NOT EXISTS imports(id TEXT PRIMARY KEY,hash TEXT UNIQUE,name TEXT,data TEXT);
 CREATE INDEX IF NOT EXISTS audit_entity_id ON audit(entity,id);
+CREATE TABLE IF NOT EXISTS workspace_records(
+  id TEXT PRIMARY KEY,
+  owner TEXT NOT NULL REFERENCES users(id),
+  fingerprint TEXT NOT NULL,
+  saved_at TEXT NOT NULL,
+  data TEXT NOT NULL,
+  UNIQUE(owner,fingerprint)
+);
+CREATE INDEX IF NOT EXISTS workspace_records_owner_saved ON workspace_records(owner,saved_at,id);

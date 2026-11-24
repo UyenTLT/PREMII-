@@ -29,9 +29,15 @@ server.stdout.on("data", (x) => (output += x));
 server.stderr.on("data", (x) => (output += x));
 let cookie = "";
 let checks = 0;
-async function api(path, b, expected = 200, c = cookie) {
+async function api(
+  path,
+  b,
+  expected = 200,
+  c = cookie,
+  method = b ? "POST" : "GET",
+) {
   const r = await fetch("http://127.0.0.1:" + port + "/api/" + path, {
-    method: b ? "POST" : "GET",
+    method,
     headers: {
       ...(b ? { "Content-Type": "application/json" } : {}),
       cookie: c,
@@ -240,6 +246,38 @@ try {
   assert.ok(shiftHistory.every((entry) => entry.entity === s.id));
   const older = (await api("history?before=" + history.entries[0].id)).data;
   assert.deepEqual(older.entries, history.entries.slice(1));
+  await api("workspace", null, 401, "");
+  const save = {
+    action: "save",
+    observation: {
+      infant: "SYNTH-DB",
+      date: "2026-11-20",
+      shift: "1",
+      WEIGHT1: "1230",
+      sourceText: "not persisted",
+    },
+  };
+  const first = await api("workspace", save, 201);
+  assert.equal(first.data.duplicate, false);
+  assert.equal((await api("workspace", save)).data.duplicate, true);
+  await api(
+    "workspace",
+    { ...save, observation: { ...save.observation, WEIGHT1: "-1" } },
+    400,
+  );
+  await api(
+    "workspace",
+    { ...save, observation: { ...save.observation, shift: "2" } },
+    201,
+  );
+  const saved = (await api("workspace")).data.records;
+  assert.equal(saved.length, 2);
+  assert.ok(saved.every((record) => !("sourceText" in record.observation)));
+  assert.deepEqual((await api("workspace", null, 200, entry)).data.records, []);
+  const deletePath = "workspace?id=" + saved[0].id;
+  await api(deletePath, null, 404, entry, "DELETE");
+  await api(deletePath, null, 200, cookie, "DELETE");
+  assert.equal((await api("workspace")).data.records.length, 1);
   await api("logout", {}, 200, entry);
   await api("data", null, 401, entry);
   console.log(

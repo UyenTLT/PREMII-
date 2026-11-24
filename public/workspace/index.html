@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PREMII · File-based assessment</title>
+    <link rel="stylesheet" href="style.css?v=database-1" />
+    <script src="i18n.js?v=database-1" defer></script>
+    <script src="suggestions.js?v=20261117-excel" defer></script>
+    <script src="extraction.js?v=20261117-excel" defer></script>
+    <script src="vendor/jszip.min.js" defer></script>
+    <script src="spreadsheet.js?v=20261117-excel" defer></script>
+    <script src="app.js?v=database-1" defer></script>
+    <script src="vendor/mammoth.browser.min.js" defer></script>
+    <script src="documents.js?v=infant-groups-default" defer></script>
+    <script src="database.js?v=1" defer></script>
+  </head>
+  <body>
+    <noscript
+      ><p class="script-error">
+        JavaScript is required to read files and generate reports. Enable
+        JavaScript, then reload this page.
+      </p></noscript
+    >
+    <header class="site-header">
+      <a class="brand" href="/workspace/index.html">PREMII</a>
+      <nav aria-label="PREMII">
+        <a href="#import-panel">Import documents</a>
+        <a href="#records"
+          >Extracted observations <span id="record-count">0</span></a
+        >
+        <a href="#database">Database</a>
+    </nav>
+      <label class="language-control">
+        <span>Language</span>
+        <select id="language" aria-label="Language / 語言">
+          <option value="en">English</option>
+          <option value="zh-Hant">繁體中文</option>
+        </select>
+      </label>
+    </header>
+    <main>
+      <section class="intro">
+        <h1>Your documents. Structured PREMII reports.</h1>
+        <p>
+          Upload medical records. Extract documented observations. Export the
+          report.
+        </p>
+      </section>
+      <div class="notice">
+        <b>ⓘ &nbsp; All values come from your files.</b> Missing or ambiguous
+        items remain explicitly undocumented. Extraction uses text rules, not a
+        validated clinical interpretation model; review the cited evidence. No
+        total score is calculated.
+      </div>
+      <section class="card" id="import-panel">
+        <h2>Import medical records</h2>
+        <p id="startup-warning" role="status">
+          Preparing document import. If this message remains, reload the page.
+        </p>
+        <div id="file-drop-zone" class="file-drop-zone">
+          <label for="source-file">Select one or more files</label>
+          <input
+            id="source-file"
+            disabled
+            type="file"
+            accept=".txt,.docx,.pdf"
+            aria-describedby="file-selection-hint"
+            multiple
+          />
+          <p class="muted" id="file-selection-hint">
+            Select multiple files in the file picker, or drag and drop them here.
+          </p>
+        </div>
+        <p class="muted">
+          Files are read locally, never uploaded. Maximum 10 MB per file and 200
+          PDF pages. Scanned PDFs need OCR first.
+        </p>
+        <p class="muted">Export before closing the page.</p>
+        <p id="import-status" role="status" aria-live="polite"></p>
+        <ul id="import-issues" hidden></ul>
+        <div id="output-ready" class="output-ready" hidden>
+          <h3>Results ready</h3>
+          <p id="output-summary" role="status" aria-live="polite"></p>
+          <div class="output-actions">
+            <button id="show-results" type="button">View results</button
+            ><button id="quick-export-excel" type="button" class="secondary">
+              Excel (.xlsx) · All observations</button
+            ><button id="quick-export-csv" type="button" class="secondary">
+              CSV · All observations
+            </button>
+          </div>
+          <div class="pdf-picker">
+            <label for="quick-pdf-note">
+              Select a note for PDF
+              <select id="quick-pdf-note" data-pdf-note disabled></select>
+            </label>
+            <button id="quick-export-pdf" type="button" class="secondary" disabled>PDF · Selected note</button>
+          </div>
+          <p id="pdf-selection" class="muted"></p>
+          <p class="muted">
+            PDF opens the print dialog. Choose Save as PDF to download the
+            report.
+          </p>
+        </div>
+        <details id="import-file-details" hidden>
+          <summary>Processed files</summary>
+          <ul id="import-files"></ul>
+        </details>
+        <button id="clear-source" type="button" class="secondary">
+          Clear session
+        </button>
+      </section>
+      <section class="card records" id="records" tabindex="-1">
+        <div class="records-heading">
+          <h2>Extracted observations</h2>
+          <div class="record-actions">
+            <button id="export-json" class="secondary" disabled>
+              JSON · All observations
+            </button>
+            <button id="export-excel" class="secondary" disabled>
+              Excel (.xlsx) · All observations
+            </button>
+            <button id="export-csv" class="secondary" disabled>
+              CSV · All observations
+            </button>
+          </div>
+        </div>
+        <div class="pdf-picker" id="records-pdf-picker" hidden>
+          <label for="records-pdf-note">
+            Select a note for PDF
+            <select id="records-pdf-note" data-pdf-note disabled></select>
+          </label>
+          <button id="export-pdf" type="button" class="secondary" disabled>PDF · Selected note</button>
+        </div>
+        <p id="records-pdf-selection" class="muted" hidden></p>
+        <div id="record-search-panel" hidden>
+          <label for="record-search">Search by Infant ID</label>
+          <input id="record-search" type="search" autocomplete="off" />
+          <label class="group-toggle"><input id="group-by-infant" type="checkbox" checked /> Group by Infant ID</label>
+          <p id="record-search-count" class="muted" role="status"></p>
+        </div>
+        <p id="no-results" class="empty" hidden>No observations match this Infant ID.</p>
+        <p id="empty-state" class="empty">
+          Upload a file to generate PREMII observations automatically.
+        </p>
+        <div class="table-scroll" id="records-list" role="region" aria-label="Observation table" tabindex="0">
+          <table id="records-table">
+            <thead>
+              <tr>
+                <th>Infant ID</th>
+                <th>Date and time</th>
+                <th>Source file</th>
+                <th>Shift</th>
+                <th>Documented items</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="record-pagination" class="pagination" hidden>
+          <button id="previous-page" type="button" class="secondary">
+            Previous page</button
+          ><span id="page-summary" aria-live="polite"></span
+          ><button id="next-page" type="button" class="secondary">
+            Next page
+          </button>
+        </div>
+        <p class="muted">
+          Study IDs and dated notes are separated when explicit headings exist.
+          Note timestamps are not assumed to be shift boundaries. Unknown
+          infant, date or shift remains undocumented.
+        </p>
+      </section>
+      <section id="results-section" hidden>
+        <div class="card">
+          <div class="results-heading">
+            <h2 id="selected-note" tabindex="-1"></h2>
+            <a href="#records">Browse all observations</a>
+          </div>
+          <p id="source-context" class="muted"></p>
+          <p class="notice">
+            Results are automatically extracted and have not been clinically
+            verified. Review the original source before saving corrections.
+          </p>
+          <button id="save-observation-db" type="button" class="secondary">Save to database</button>
+          <button id="edit-observation" type="button" class="secondary">Edit observation</button>
+          <button id="merge-observations" type="button" class="secondary" hidden>Merge same-shift observations</button>
+          <button id="undo-observation-merge" type="button" class="secondary" hidden>Undo merge</button>
+          <div id="extracted-fields" class="extracted-grid"></div>
+        </div>
+        <details class="card" id="original-note-panel">
+          <summary>View original source note</summary>
+          <textarea
+            id="source-text"
+            rows="15"
+            readonly
+            aria-label="Source text"
+          ></textarea>
+        </details>
+      </section>
+      <section class="card" id="database">
+        <h2>Database</h2>
+        <p class="muted">Sign in with your PREMII Tracker account. Only observations you save are stored. Your original files stay in this browser.</p>
+        <p id="database-message" role="status" aria-live="polite"></p>
+        <form id="database-login" hidden>
+          <label>Account ID <input name="id" autocomplete="username" required /></label>
+          <label>Password <input name="password" type="password" autocomplete="current-password" required /></label>
+          <button type="submit">Sign in</button>
+          <a href="/">Set up your Tracker account</a>
+        </form>
+        <div id="database-actions" class="record-actions" hidden>
+          <button id="database-add" type="button">Add record</button>
+          <button id="database-logout" type="button" class="secondary">Sign out</button>
+        </div>
+        <p id="database-empty" hidden>No saved records.</p>
+        <ul id="database-records"></ul>
+      </section>
+      <footer>
+        PREMII workspace
+        <small
+          >© 2018 Shire Human Genetic Therapies, Inc. PREMII is a trademark of
+          Shire, a Takeda company.</small
+        >
+      </footer>
+    </main>
+    <dialog id="observation-editor" aria-labelledby="editor-title">
+      <form id="observation-form">
+        <h2 id="editor-title">Edit observation</h2>
+        <p class="muted">Changes apply to this session and its exports. Blank fields stay undocumented.</p>
+        <p id="observation-editor-error" role="alert"></p>
+        <div id="observation-fields" class="editor-fields"></div>
+        <div class="editor-actions">
+          <button id="cancel-observation" type="button" class="secondary">Cancel</button>
+          <button type="submit">Save changes</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="merge-dialog" aria-labelledby="merge-title">
+      <form id="merge-form">
+        <h2 id="merge-title">Merge same-shift observations</h2>
+        <p class="muted">Original notes stay available. The merged observation replaces them in Excel, CSV and JSON exports.</p>
+        <ul id="merge-sources"></ul>
+        <div id="merge-conflicts"></div>
+        <p id="merge-error" role="alert" class="import-error"></p>
+        <div class="editor-actions">
+          <button id="cancel-merge" type="button" class="secondary">Cancel</button>
+          <button type="submit">Save merged observation</button>
+        </div>
+      </form>
+    </dialog>
+    <section id="print-report" aria-label="PREMII report"></section>
+    <div id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
