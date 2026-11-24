@@ -76,12 +76,39 @@ function showRecordInList(record,expandGroup=true){
   recordPage=Math.floor(Math.max(0,rows.indexOf(record))/RECORDS_PER_PAGE);
  }
 }
+function pdfNoteLabel(record){
+ const infant=record.infant??t('Infant ID not documented');
+ const time=[record.date,record.noteTime].filter(Boolean).join(' ')||t('Date not documented');
+ const shift=record.shift?t('Shift')+' '+record.shift:t('Shift not documented');
+ const source=record.mergedFrom?t('Merged observation'):
+  `${record.filename} · ${t('Source line')} ${record.sourceLine}`;
+ return [infant,time,shift,source].join(' · ');
+}
+function renderPdfPickers(){
+ $('#records-pdf-picker').hidden=!records.length;
+ const options=document.createDocumentFragment();
+ const placeholder=node('option',t('Select a note for PDF'));
+ placeholder.value='';
+ placeholder.disabled=true;
+ options.append(placeholder);
+ for(const record of records){
+  const option=node('option',pdfNoteLabel(record));
+  option.value=record.recordId;
+  options.append(option);
+ }
+ for(const select of document.querySelectorAll('[data-pdf-note]')){
+  select.replaceChildren(options.cloneNode(true));
+  select.disabled=!records.length;
+  select.value=selectedRecordId??'';
+ }
+}
 function render(){
  const visibleRecords=matchingRecords();
  const grouped=$('#group-by-infant').checked;
  const groups=grouped?recordGroups(visibleRecords):[];
  const pageCount=grouped?groups.length:visibleRecords.length;
  const active=activeRecord();
+ renderPdfPickers();
  $('#record-count').textContent=records.length;$('#empty-state').hidden=!!records.length;$('#results-section').hidden=!active||!detailsOpen;
  for(const id of ['export-json','export-csv'])$('#'+id).disabled=!records.length;
  $('#output-ready').hidden=!records.length;
@@ -195,6 +222,12 @@ $('#record-search').addEventListener('input',()=>{
  recordPage=0;
  render();
 });
+for(const select of document.querySelectorAll('[data-pdf-note]')){
+ select.addEventListener('change',()=>{
+  selectedRecordId=select.value;
+  render();
+ });
+}
 $('#quick-export-pdf').onclick=()=>$('#export-pdf').click();
 $('#quick-export-csv').onclick=()=>$('#export-csv').click();
 $('#previous-page').onclick=()=>{recordPage--;render();$('#records').scrollIntoView({block:'start'});};
