@@ -4,7 +4,6 @@ const translations = {
   "Preterm infant assessment": "早產兒評估",
   "Shift assessment": "每班評估",
   "Saved assessments": "已記錄評估",
-  "User guide": "使用說明",
   "Local session": "本機工作階段",
   "Data stays in this tab’s memory.": "資料僅保留於此分頁記憶體中。",
   "Export before closing the page.": "關閉頁面前請匯出資料。",
