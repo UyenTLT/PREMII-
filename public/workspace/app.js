@@ -95,10 +95,25 @@ function codedSummary(record,field){
  if(record.fieldStatus?.[field]==='conflicting')return record.evidence?.[field]||missing(record,field);
  return '';
 }
+function exportFiO2(record){
+ const unique=new Map();
+ for(const {percent,referenceDate} of record.fio2Readings??[]){
+  const reading=referenceDate?{percent,referenceDate}:{percent};
+  unique.set(JSON.stringify(reading),reading);
+ }
+ return [...unique.values()];
+}
+function fio2Text(record,localize=false){
+ const label=localize?t('Settings from'):'Settings from';
+ return exportFiO2(record).map(({percent,referenceDate})=>
+  referenceDate?`${percent}% (${label} ${referenceDate})`:`${percent}%`
+ ).join(' · ');
+}
+const fio2ExportLabel='Documented FiO₂ readings';
 function fio2Summary(record){
  const readings=record.fio2Readings??[];
  const explicitCode=/\bOA\s*[:=：]/i.test(record.evidence?.OA??'');
- const showRecordedCode=explicitCode||record.manualEdits?.OA||record.fieldStatus?.OA==='conflicting';
+ const showRecordedCode=explicitCode||record.mergedFrom||record.manualEdits?.OA||record.fieldStatus?.OA==='conflicting';
  if(!readings.length)return [codedSummary(record,'OA')];
  const values=readings.map(({percent,referenceDate})=>{
   if(referenceDate)return `${percent}% · ${t('Settings from')} ${referenceDate}`;
@@ -306,6 +321,7 @@ function exportRecords(){
  return exportableRecords().map(record=>{
   const output={};
   for(const field of editorFields)output[exportColumnLabel(field)]=readableValue(field,record[field]??null);
+  output[fio2ExportLabel]=exportFiO2(record);
   for(const field of ['recordId','patientKey','filename','sourceLine','extractionStatus','schemaVersion','mergedFrom']){
    if(record[field]!==undefined)output[field]=record[field];
   }
@@ -322,8 +338,8 @@ function exportRecords(){
 }
 $('#export-json').onclick=()=>download(JSON.stringify({instrument:'PREMII',totalScoreCalculated:false,mode:'file-only',exportFormat:'descriptive-observations-v1',records:exportRecords()},null,2),'application/json','json');
 $('#export-csv').onclick=()=>{
- const columns=PREMII_FIELDS.map(exportColumnLabel);
- const rows=exportableRecords().map(record=>PREMII_FIELDS.map(key=>readableValue(key,record[key]??null)));
+ const columns=[...PREMII_FIELDS.map(exportColumnLabel),fio2ExportLabel];
+ const rows=exportableRecords().map(record=>[...PREMII_FIELDS.map(key=>readableValue(key,record[key]??null)),fio2Text(record)]);
  const escape=value=>'"'+String(value??'').replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';
  download('\uFEFF'+[columns,...rows].map(row=>row.map(escape).join(',')).join('\r\n'),'text/csv;charset=utf-8','csv');
 };
@@ -601,6 +617,7 @@ $('#merge-form').onsubmit=event=>{
  result.recordId='merged-'+(++mergeSequence);
  result.extractionStatus='merged-unverified';
  result.schemaVersion=selected.schemaVersion;
+ result.fio2Readings=sources.flatMap(source=>source.fio2Readings??[]);
  result.mergedFrom=sources.map(({recordId,filename,sourceLine,noteTime})=>({recordId,filename,sourceLine,noteTime}));
  result.filename=sources.map(source=>source.filename).join(', ');
  result.sourceText=sources.map(source=>mergeSourceLabel(source)+'\n'+source.sourceText).join('\n\n');

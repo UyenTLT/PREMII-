@@ -148,6 +148,7 @@ function buildReport(){
   const footer=node('footer',undefined,'pdf-footer');footer.append(node('span','PREMII™ · © 2018 Shire Human Genetic Therapies, Inc.'),node('span',t('Adapted research report · No total score')));sheet.append(footer);report.append(sheet);return content;
  }
  function value(field){
+  if(field==='fio2Readings')return fio2Text(r,true)||'—';
   if(r[field]===null||r[field]===undefined||r[field]==='')return r.fieldStatus?.[field]==='not-applicable'?'N/A':r.fieldStatus?.[field]==='conflicting'?t('Conflict'):'—';
   if(field==='first')return t(r.first==='on'?'Yes':'No');
   if(field==='THG2')return t({'2':'Closed, heated incubator','1':'Radiant warmer'}[r[field]]??r[field]);
@@ -159,7 +160,7 @@ function buildReport(){
  const first=page('Observation summary',1);
  first.append(node('p',t(r.extractionStatus==='saved-record'?'Saved database observation · Source note not stored':r.mergedFrom?'Merged observations · Review original sources':r.manualEdits?'Contains manual edits · One source note':'Automatically extracted · Unverified · One source note, not an assumed complete shift'),'pdf-status'));
  const resp=section(first,'01 · Respiratory support & oxygen');
- rows(resp,[['Respiratory support','RES1'],['Device','RES2'],['Flow source','RES3'],['Greatest flow','RES3_1','cc/min'],['Highest oxygen concentration','OA']]);
+ rows(resp,[['Respiratory support','RES1'],['Device','RES2'],['Flow source','RES3'],['Greatest flow','RES3_1','cc/min'],['Highest oxygen concentration','OA'],['Documented FiO₂ readings','fio2Readings']]);
  const pair=node('div',undefined,'pdf-pair');first.append(pair);
  const thermal=section(pair,'02 · Thermoregulation');rows(thermal,[['Support','THG1'],['Warming device','THG2']]);
  const feeding=section(pair,'03 · Feeding');rows(feeding,[['Feeds documented','fed'],['Feeding level','FEED1'],['Feeding method','FEED2']]);

@@ -96,7 +96,7 @@ async function refreshDatabase(){
 }
 
 function databaseFields(observation){
- return Object.fromEntries(editorFields.map(field=>[field,observation[field]??null]));
+ return {...Object.fromEntries(editorFields.map(field=>[field,observation[field]??null])),fio2Readings:exportFiO2(observation)};
 }
 
 function promptDatabaseLogin(){

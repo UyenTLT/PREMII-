@@ -255,9 +255,18 @@ try {
       shift: "1",
       WEIGHT1: "1230",
       sourceText: "not persisted",
+      fio2Readings: [
+        { percent: 25 },
+        { percent: 38, referenceDate: "4/30", evidence: "not persisted" },
+        { percent: 25 },
+      ],
     },
   };
   const first = await api("workspace", save, 201);
+  await api("workspace", {
+    ...save,
+    observation: { ...save.observation, fio2Readings: [{ percent: 38, referenceDate: "2/30" }] },
+  }, 400);
   assert.equal(first.data.duplicate, false);
   assert.equal((await api("workspace", save)).data.duplicate, true);
   await api(
@@ -273,6 +282,12 @@ try {
   const saved = (await api("workspace")).data.records;
   assert.equal(saved.length, 2);
   assert.ok(saved.every((record) => !("sourceText" in record.observation)));
+  for (const record of saved) {
+    assert.deepEqual(record.observation.fio2Readings, [
+      { percent: 25 },
+      { percent: 38, referenceDate: "4/30" },
+    ]);
+  }
   assert.deepEqual((await api("workspace", null, 200, entry)).data.records, []);
   const deletePath = "workspace?id=" + saved[0].id;
   await api(deletePath, null, 404, entry, "DELETE");

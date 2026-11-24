@@ -82,6 +82,32 @@ const numbers: Record<string, readonly [number, number, boolean]> = {
   WEIGHT1: [1, 20000, true],
 };
 
+function fio2Readings(input: unknown) {
+  if (input == null) return [];
+  if (!Array.isArray(input) || input.length > 3000) return null;
+  const readings = new Map<string, { percent: number; referenceDate?: string }>();
+  for (const item of input) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+    const { percent, referenceDate } = item;
+    if (typeof percent !== "number" || !Number.isFinite(percent) || percent < 21 || percent > 100)
+      return null;
+    if (referenceDate != null) {
+      if (typeof referenceDate !== "string") return null;
+      const short = /^(\d{1,2})\/(\d{1,2})$/.exec(referenceDate);
+      const iso = short
+        ? `2000-${short[1].padStart(2, "0")}-${short[2].padStart(2, "0")}`
+        : referenceDate;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+      const date = new Date(iso + "T00:00:00Z");
+      if (!Number.isFinite(+date) || date.toISOString().slice(0, 10) !== iso)
+        return null;
+    }
+    const date = referenceDate ?? undefined;
+    readings.set(JSON.stringify([percent, date]), date ? { percent, referenceDate: date } : { percent });
+  }
+  return [...readings.values()];
+}
+
 function observation(input: unknown) {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null;
   const source = input as Record<string, unknown>;
@@ -127,7 +153,9 @@ function observation(input: unknown) {
       data[field] = String(number);
     }
   }
-  return data;
+  const readings = fio2Readings(source.fio2Readings);
+  if (!readings) return null;
+  return readings.length ? { ...data, fio2Readings: readings } : data;
 }
 
 async function handle(req: NextRequest) {

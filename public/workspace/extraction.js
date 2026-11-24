@@ -32,14 +32,20 @@ function currentObservations(text,date){
   if(date&&dates.some(d=>d&&d!==date))return false;
   // Timelines in progress notes are not assumed to describe current support.
   const shortDates=[...line.matchAll(/(?:^|[\s(（\[,，])(?:\d{4}[/-])?(\d{1,2})\/(\d{1,2})(?=[\s,:：，)）\]-]|$)/g)];
-  if(date&&shortDates.some(m=>Number(m[1])!==Number(date.slice(5,7))||Number(m[2])!==Number(date.slice(8,10))))return false;
+  if(date&&shortDates.some(match=>{
+   const month=Number(match[1]);
+   const day=Number(match[2]);
+   if(month<1||month>12||day<1||day>31)return false;
+   if(/(?:\b(?:IPAP\s*\/\s*EPAP|PIP\s*\/\s*PEEP|PIP|IPAP|NIMV|NIPPV|BiPAP|SIMV|IMV)\b)\s*[:=]?\s*$/i.test(line.slice(0,match.index+1)))return false;
+   return month!==Number(date.slice(5,7))||day!==Number(date.slice(8,10));
+  }))return false;
   return true;
  }).join('\n');
 }
 function ventilatorFiO2(text,noteDate){
  const readings=[];
  // A settings tuple starts with FiO₂, followed by rate and inspiratory/expiratory pressure.
- const settings=/^\s*(?:[#@•-]\s*)?(?:Ventilation|Ventilator(?: settings)?|呼吸器(?:設定)?)\s*:\s*(?:(\d{4}[/-]\d{2}[/-]\d{2}|\d{1,2}\/\d{1,2})\s+)?(?:IMV|SIMV|NIMV|NIPPV|n?CPAP|HFOV)\s*\[\s*(\d+(?:\.\d+)?)\s*%\s*,\s*\d+(?:\.\d+)?\s*,\s*\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?\s*\]/i;
+ const settings=/^\s*(?:[#@•-]\s*)?(?:(?:Ventilation|Ventilator(?: settings)?|呼吸器(?:設定)?)\s*:\s*)?(?:(\d{4}[/-]\d{2}[/-]\d{2}|\d{1,2}\/\d{1,2})\s+)?(?:IMV|SIMV|NIMV|NIPPV|BiPAP|n?CPAP|HFOV)\s*\[\s*(\d+(?:\.\d+)?)\s*%\s*,\s*\d+(?:\.\d+)?\s*,\s*\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?\s*\]/i;
  for(const line of text.split('\n')){
   const match=line.normalize('NFKC').match(settings);
   if(!match)continue;
