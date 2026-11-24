@@ -51,3 +51,19 @@ footer { flex-wrap: wrap; gap: 8px; color: #5b7167; }
 }
 .file-drop-zone label { font-size: 14px; font-weight: 650; }
 .file-drop-zone .muted { margin: 8px 0 0; }
+
+#record-search-panel { max-width: 360px; margin-top: 16px; }
+#record-search-panel label { font-size: 13px; font-weight: 650; }
+#record-search-count { margin: 4px 0 0; }
+#record-search-count:empty { display: none; }
+#records-table td:nth-child(3) {
+  min-width: 140px;
+  max-width: 240px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#import-file-details { margin-top: 12px; }
+#import-file-details summary { cursor: pointer; }
+#import-issues { padding-left: 24px; overflow-wrap: anywhere; }
+#import-issues .import-error { color: #8c3828; }
+#pdf-selection, #records-pdf-selection { overflow-wrap: anywhere; }

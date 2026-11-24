@@ -16,8 +16,14 @@ function renderImportItem(row){
 }
 function renderImportStatus(){
  if(!lastImportSummary)return;
- const {succeeded,added,failed,skipped}=lastImportSummary;
- $('#import-status').textContent=added||skipped?`${succeeded} ${t('files imported')} · ${added} ${t('observations')} · ${failed} ${t('files failed')}${skipped?' · '+skipped+' '+t('duplicate observations skipped'):''}`:t('No output was generated. Check the file errors above and try another supported document.');
+ const {added,failed,skipped}=lastImportSummary;
+ const summary=[
+  `${added} ${t('new observations')}`,
+  `${skipped} ${t('duplicate observations skipped')}`,
+  `${failed} ${t('files failed')}`
+ ].join(' · ');
+ const guidance=added||skipped?'':' · '+t('No output was generated. Check the file errors above and try another supported document.');
+ $('#import-status').textContent=summary+guidance;
 }
 async function readDocument(file){
  if(file.size>10*1024*1024||! /\.(txt|docx|pdf)$/i.test(file.name))throw new Error('Choose a TXT, DOCX or PDF file up to 10 MB.');
@@ -44,12 +50,13 @@ async function importDocuments(files){
  if(!files.length||$('#source-file').disabled)return;
  const generation=++importGeneration;const startCount=records.length;lastImportSummary=null;
  const seenNotes=new Set(records.map(noteKey).filter(key=>key!==null));
- let succeeded=0,failed=0,skipped=0,firstNewRecordId=null;
+ let failed=0,skipped=0,firstNewRecordId=null;
+ $('#import-file-details').open=false;
  $('#source-file').disabled=true;$('#import-status').textContent=t('Reading and extracting documents…');
  try{
   for(const file of files){
    if(generation!==importGeneration)return;
-   const item=node('li');const row={item,filename:file.name,count:null,error:null};importItems.push(row);renderImportItem(row);$('#import-files').append(item);
+   const item=node('li');const row={item,filename:file.name,count:null,error:null};importItems.push(row);renderImportItem(row);$('#import-issues').append(item);$('#import-issues').hidden=false;
    // Yield a frame so status changes are painted before processing a large file.
    await new Promise(resolve=>setTimeout(resolve,0));
    try{
@@ -69,11 +76,13 @@ async function importDocuments(files){
     for(const key of newKeys)seenNotes.add(key);
     for(const record of unique)records.push(record);
     firstNewRecordId??=unique[0]?.recordId??null;
-    if(unique.length)succeeded++;
     row.count=unique.length;
     row.skipped=extracted.length-unique.length;
     skipped+=row.skipped;
     renderImportItem(row);
+    $('#import-files').append(item);
+    $('#import-file-details').hidden=false;
+    $('#import-issues').hidden=!$('#import-issues').childElementCount;
    }catch(error){
     if(generation!==importGeneration)return;
     failed++;item.classList.add('import-error');
@@ -81,10 +90,15 @@ async function importDocuments(files){
    }
   }
   if(generation!==importGeneration)return;
-  if(firstNewRecordId){selectedRecordId=firstNewRecordId;recordPage=Math.floor(records.findIndex(r=>r.recordId===firstNewRecordId)/RECORDS_PER_PAGE);}
+  if(firstNewRecordId){
+   selectedRecordId=firstNewRecordId;
+   detailsOpen=false;
+   $('#record-search').value='';
+   recordPage=Math.floor(records.findIndex(r=>r.recordId===firstNewRecordId)/RECORDS_PER_PAGE);
+  }
   render();
   const added=records.length-startCount;
-  lastImportSummary={succeeded,added,failed,skipped};renderImportStatus();
+  lastImportSummary={added,failed,skipped};renderImportStatus();
   if(added){$('#output-ready').scrollIntoView({behavior:'smooth',block:'start'});notify(t('Results are ready below. View the extracted fields or export the report.'));}
  }finally{if(generation===importGeneration){$('#source-file').disabled=false;$('#source-file').value='';}}
 }
@@ -106,7 +120,7 @@ fileDropZone.addEventListener('drop', event => {
   fileDropZone.classList.remove('dragging');
   importDocuments([...event.dataTransfer.files]);
 });
-$('#clear-source').onclick=()=>{if(records.length&&!confirm(t('Clear all imported documents and extracted results?')))return;importGeneration++;records.splice(0);selectedRecordId=null;recordPage=0;lastImportSummary=null;importItems.splice(0);$('#source-file').disabled=false;$('#source-file').value='';$('#source-text').value='';$('#import-files').replaceChildren();$('#import-status').textContent='';$('#print-report').replaceChildren();render();};
+$('#clear-source').onclick=()=>{if(records.length&&!confirm(t('Clear all imported documents and extracted results?')))return;importGeneration++;records.splice(0);selectedRecordId=null;detailsOpen=false;recordPage=0;$('#record-search').value='';lastImportSummary=null;importItems.splice(0);$('#source-file').disabled=false;$('#source-file').value='';$('#source-text').value='';$('#import-files').replaceChildren();$('#import-file-details').hidden=true;$('#import-issues').replaceChildren();$('#import-issues').hidden=true;$('#import-status').textContent='';$('#print-report').replaceChildren();render();};
 window.addEventListener('languagechange',()=>{if(lastImportSummary)renderImportStatus();else $('#import-status').textContent=translateText($('#import-status').textContent);importItems.forEach(renderImportItem);});
 function buildReport(){
  const report=$('#print-report');report.replaceChildren();const r=activeRecord();if(!r)return report;

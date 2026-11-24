@@ -1,6 +1,19 @@
 'use strict';
 // UI language only is persisted. Assessment data is never stored here.
 const translations = {
+  "Search by Infant ID": "依嬰兒代碼搜尋",
+  "No observations match this Infant ID.": "沒有符合此嬰兒代碼的觀察記錄。",
+  "Date and time": "日期與時間",
+  "Source file": "來源檔案",
+  "Details": "詳情",
+  "Observation table": "觀察記錄表格",
+  "Selected for PDF": "PDF 匯出所選記錄",
+  "PDF · Selected note": "PDF · 所選記錄",
+  "Excel (.xlsx) · All observations": "Excel (.xlsx) · 全部觀察記錄",
+  "CSV · All observations": "CSV · 全部觀察記錄",
+  "JSON · All observations": "JSON · 全部觀察記錄",
+  "new observations": "筆新觀察記錄",
+  "Processed files": "已處理檔案",
   "duplicate observations skipped": "筆重複觀察記錄已略過",
   "Preterm infant assessment": "早產兒評估",
   "Shift assessment": "每班評估",

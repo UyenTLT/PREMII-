@@ -4,15 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PREMII · File-based assessment</title>
-    <link rel="stylesheet" href="style.css?v=multi-file-1" />
-    <script src="i18n.js?v=dedup-1" defer></script>
+    <link rel="stylesheet" href="style.css?v=workspace-review-1" />
+    <script src="i18n.js?v=workspace-review-1" defer></script>
     <script src="suggestions.js?v=20261117-excel" defer></script>
     <script src="extraction.js?v=20261117-excel" defer></script>
     <script src="vendor/jszip.min.js" defer></script>
     <script src="spreadsheet.js?v=20261117-excel" defer></script>
-    <script src="app.js?v=20261117-excel" defer></script>
+    <script src="app.js?v=workspace-review-1" defer></script>
     <script src="vendor/mammoth.browser.min.js" defer></script>
-    <script src="documents.js?v=dedup-1" defer></script>
+    <script src="documents.js?v=workspace-review-1" defer></script>
   </head>
   <body>
     <noscript
@@ -76,33 +76,95 @@
         </p>
         <p class="muted">Export before closing the page.</p>
         <p id="import-status" role="status" aria-live="polite"></p>
-        <ul id="import-files"></ul>
+        <ul id="import-issues" hidden></ul>
         <div id="output-ready" class="output-ready" hidden>
           <h3>Results ready</h3>
           <p id="output-summary" role="status" aria-live="polite"></p>
           <div class="output-actions">
             <button id="show-results" type="button">View results</button
             ><button id="quick-export-pdf" type="button" class="secondary">
-              Export selected PDF</button
+              PDF · Selected note</button
             ><button id="quick-export-excel" type="button" class="secondary">
-              Export Excel (.xlsx)</button
+              Excel (.xlsx) · All observations</button
             ><button id="quick-export-csv" type="button" class="secondary">
-              Export CSV
+              CSV · All observations
             </button>
           </div>
+          <p id="pdf-selection" class="muted"></p>
           <p class="muted">
             PDF opens the print dialog. Choose Save as PDF to download the
             report.
           </p>
         </div>
+        <details id="import-file-details" hidden>
+          <summary>Processed files</summary>
+          <ul id="import-files"></ul>
+        </details>
         <button id="clear-source" type="button" class="secondary">
           Clear session
         </button>
       </section>
+      <section class="card records" id="records" tabindex="-1">
+        <div class="records-heading">
+          <h2>Extracted observations</h2>
+          <div class="record-actions">
+            <button id="export-pdf" class="secondary" disabled>
+              PDF · Selected note
+            </button>
+            <button id="export-json" class="secondary" disabled>
+              JSON · All observations
+            </button>
+            <button id="export-excel" class="secondary" disabled>
+              Excel (.xlsx) · All observations
+            </button>
+            <button id="export-csv" class="secondary" disabled>
+              CSV · All observations
+            </button>
+          </div>
+        </div>
+        <p id="records-pdf-selection" class="muted" hidden></p>
+        <div id="record-search-panel" hidden>
+          <label for="record-search">Search by Infant ID</label>
+          <input id="record-search" type="search" autocomplete="off" />
+          <p id="record-search-count" class="muted" role="status"></p>
+        </div>
+        <p id="no-results" class="empty" hidden>No observations match this Infant ID.</p>
+        <p id="empty-state" class="empty">
+          Upload a file to generate PREMII observations automatically.
+        </p>
+        <div class="table-scroll" id="records-list" role="region" aria-label="Observation table" tabindex="0">
+          <table id="records-table">
+            <thead>
+              <tr>
+                <th>Infant ID</th>
+                <th>Date and time</th>
+                <th>Source file</th>
+                <th>Shift</th>
+                <th>Documented items</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="record-pagination" class="pagination" hidden>
+          <button id="previous-page" type="button" class="secondary">
+            Previous page</button
+          ><span id="page-summary" aria-live="polite"></span
+          ><button id="next-page" type="button" class="secondary">
+            Next page
+          </button>
+        </div>
+        <p class="muted">
+          Study IDs and dated notes are separated when explicit headings exist.
+          Note timestamps are not assumed to be shift boundaries. Unknown
+          infant, date or shift remains undocumented.
+        </p>
+      </section>
       <section id="results-section" hidden>
         <div class="card">
           <div class="results-heading">
-            <h2 id="selected-note"></h2>
+            <h2 id="selected-note" tabindex="-1"></h2>
             <a href="#records">Browse all observations</a>
           </div>
           <p id="source-context" class="muted"></p>
@@ -122,55 +184,6 @@
             aria-label="Source text"
           ></textarea>
         </details>
-      </section>
-      <section class="card records" id="records">
-        <div class="records-heading">
-          <h2>Extracted observations</h2>
-          <div class="record-actions">
-            <button id="export-pdf" class="secondary" disabled>
-              Export selected PDF
-            </button>
-            <button id="export-json" class="secondary" disabled>
-              Export JSON
-            </button>
-            <button id="export-excel" class="secondary" disabled>
-              Export Excel (.xlsx)
-            </button>
-            <button id="export-csv" class="secondary" disabled>
-              Export CSV
-            </button>
-          </div>
-        </div>
-        <p id="empty-state" class="empty">
-          Upload a file to generate PREMII observations automatically.
-        </p>
-        <div class="table-scroll">
-          <table id="records-table">
-            <thead>
-              <tr>
-                <th>Infant ID</th>
-                <th>Date</th>
-                <th>Shift</th>
-                <th>Documented items</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <div id="record-pagination" class="pagination" hidden>
-          <button id="previous-page" type="button" class="secondary">
-            Previous page</button
-          ><span id="page-summary" aria-live="polite"></span
-          ><button id="next-page" type="button" class="secondary">
-            Next page
-          </button>
-        </div>
-        <p class="muted">
-          Study IDs and dated notes are separated when explicit headings exist.
-          Note timestamps are not assumed to be shift boundaries. Unknown
-          infant, date or shift remains undocumented.
-        </p>
       </section>
       <footer>
         PREMII workspace

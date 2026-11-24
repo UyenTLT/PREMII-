@@ -3,9 +3,10 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 (async()=>{const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});try{
  const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(process.env.PREMII_TEST_URL||'http://127.0.0.1:3000');
- assert.equal(await page.locator('form,input:not([type=file])').count(),0);assert.equal(await page.locator('textarea:not([readonly])').count(),0);
+ assert.equal(await page.locator('form,input:not([type=file]):not(#record-search)').count(),0);assert.equal(await page.locator('textarea:not([readonly])').count(),0);
  const text='【研究ID：TEST-001】\nDate: 2026-11-03\nOn nCPAP\nFiO2: 35%\nWeight: 1230 g\nABD1_1: 0\n【研究ID：TEST-002】\nNo usable observations.';
  await page.setInputFiles('#source-file',{name:'synthetic.txt',mimeType:'text/plain',buffer:Buffer.from(text)});await page.waitForFunction(()=>document.querySelectorAll('#records-table tbody tr').length===2);
+ assert.equal(await page.locator('#results-section').isVisible(),false);await page.locator('#records-table tbody tr').first().getByRole('button').click();
  assert.match(await page.locator('#selected-note').innerText(),/TEST-001/);assert.match(await page.locator('#extracted-fields').innerText(),/Not found in source/);assert.equal(await page.locator('#extracted-fields article').filter({has:page.locator('p.eyebrow', {hasText:/^ABD1_1$/})}).locator('.extracted-value').innerText(),'0');
  const exportJson=async path=>{const wait=page.waitForEvent('download');await page.click('#export-json');await(await wait).saveAs(path);return JSON.parse(fs.readFileSync(path,'utf8'));};
  const en=await exportJson('/tmp/premii-file-en.json');assert.equal(en.mode,'file-only');assert.equal(en.records[0].infant,'TEST-001');assert.equal(en.records[0].shift,null);assert.equal(en.records[0].WEIGHT2,null);assert.equal(en.records[0].ABD4,null);assert.equal(en.records[0].ABD1_1,'0');assert.equal(en.records[1].date,null);assert.equal(en.records[1].RES1,null);assert.equal(en.records[0].sourceText,undefined);
