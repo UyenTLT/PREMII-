@@ -14,7 +14,7 @@ const fs=require('node:fs');
  assert.equal(await page.locator('#results-section').evaluate(el=>el.compareDocumentPosition(document.querySelector('#records'))&Node.DOCUMENT_POSITION_PRECEDING),2);
  await page.waitForTimeout(500);const outputY=await page.locator('#output-ready').evaluate(el=>el.getBoundingClientRect().top);assert.ok(outputY>-200&&outputY<500,`outputY=${outputY}`);
  await page.click('#next-page');assert.match(await page.locator('#page-summary').innerText(),/2 \/ /);assert.equal(await page.locator('#records-table tbody tr').count(),20);await page.locator('#records-table tbody tr').first().getByRole('button').click();assert.equal(await page.locator('#results-section').isVisible(),true);
- const out=process.env.PREMII_ARTIFACT_DIR||'/tmp';fs.mkdirSync(out,{recursive:true});const download=page.waitForEvent('download');await page.click('#quick-export-csv');await(await download).saveAs(out+'/premii-import-results.csv');assert.ok(fs.statSync(out+'/premii-import-results.csv').size>1000);const header=fs.readFileSync(out+'/premii-import-results.csv','utf8').replace(/^\uFEFF/,'').split(/\r?\n/)[0].split(',').map(v=>v.slice(1,-1));assert.equal(header.length,33);assert.equal(header[0],'infant');assert.equal(header.at(-1),'WEIGHT3');for(const metadata of ['recordId','patientKey','noteTime','filename','sourceLine','extractionStatus','schemaVersion','evidence','fieldStatus'])assert.equal(header.includes(metadata),false);
+ const out=process.env.PREMII_ARTIFACT_DIR||'/tmp';fs.mkdirSync(out,{recursive:true});const download=page.waitForEvent('download');await page.click('#quick-export-csv');await(await download).saveAs(out+'/premii-import-results.csv');assert.ok(fs.statSync(out+'/premii-import-results.csv').size>1000);const header=fs.readFileSync(out+'/premii-import-results.csv','utf8').replace(/^\uFEFF/,'').split(/\r?\n/)[0].split(',').map(v=>v.slice(1,-1));assert.equal(header.length,33);assert.equal(header[0],'Infant identifier');assert.equal(header.at(-1),'Weighing time');for(const metadata of ['recordId','patientKey','noteTime','filename','sourceLine','extractionStatus','schemaVersion','evidence','fieldStatus'])assert.equal(header.includes(metadata),false);
  await page.evaluate(()=>window.print=()=>{});await page.click('#quick-export-pdf');assert.ok([1,2].includes(await page.locator('.report-page').count()));await page.pdf({path:out+'/premii-sample-report.pdf',preferCSSPageSize:true});
  const jsonDownload=page.waitForEvent('download');await page.click('#export-json');await(await jsonDownload).saveAs(out+'/premii-import-results.json');const data=JSON.parse(fs.readFileSync(out+'/premii-import-results.json'));assert.equal(data.records.length,count);const excelDownload=page.waitForEvent('download');await page.click('#quick-export-excel');await(await excelDownload).saveAs(out+'/premii-import-results.xlsx');
  require('node:child_process').execFileSync('python3',['-c',`import sys,json,openpyxl
@@ -22,17 +22,17 @@ sheet=openpyxl.load_workbook(sys.argv[1],data_only=False)['PREMII']
 records=json.load(open(sys.argv[2]))['records']
 assert sheet.max_column==33 and sheet.max_row==len(records)+1
 headers=[c.value for c in sheet[1]]
-assert headers[0]=='infant' and headers[-1]=='WEIGHT3'
+assert headers[0]=='Infant identifier' and headers[-1]=='Weighing time'
 assert sheet.freeze_panes=='A2'
 for cells,record in zip(sheet.iter_rows(min_row=2),records):
  for cell,key in zip(cells,headers):
   actual,expected=cell.value,record[key]
   assert cell.data_type!='f'
   if expected is None: assert actual is None
-  elif isinstance(actual,(int,float)): assert actual==float(expected) and key!='infant'
+  elif isinstance(actual,(int,float)): assert actual==float(expected) and key!='Infant identifier'
   else: assert actual==str(expected)
 `,out+'/premii-import-results.xlsx',out+'/premii-import-results.json']);
- assert.equal(new Set(data.records.map(r=>r.infant)).size,infantCount);
+ assert.equal(new Set(data.records.map(r=>r['Infant identifier'])).size,infantCount);
  await page.selectOption('#language','zh-Hant');await page.click('#quick-export-pdf');await page.pdf({path:out+'/premii-sample-report-zh.pdf',preferCSSPageSize:true});assert.match(await page.locator('#output-summary').innerText(),/筆觀察記錄/);assert.match(await page.locator('#next-page').innerText(),/下一頁/);assert.equal(await page.locator('#records-table tbody tr').count(),20);
  await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  await page.click('#show-results');await page.waitForTimeout(500);await page.screenshot({path:out+'/premii-import-results-mobile.png'});assert.deepEqual(errors,[]);

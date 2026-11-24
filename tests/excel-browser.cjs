@@ -25,7 +25,8 @@ assert a['AE2'].value==1200
 assert a['AF2'].value=='2026-11-17' and a['AG2'].value=='08:30'
 assert a.freeze_panes=='A2' and a.auto_filter.ref=='A1:AG4'
 assert a['A1'].font.bold
-assert a['A1'].value=='infant' and a['AG1'].value=='WEIGHT3'
+assert a['A1'].value=='Infant identifier' and a['AG1'].value=='Weighing time'
+assert a['F1'].value=='Respiratory support' and a['F2'].value=='Continuous low-flow nasal cannula (< 2 L/min)'
 assert not any(c.data_type=='f' for row in a for c in row)
 assert list(a.values)==list(b.values)
 print('PASS: valid XLSX, 33 clinical columns, leading-zero IDs, Unicode/XML characters, numeric data, real zeros vs blanks, literal formula-like IDs, frozen/filterable header, both languages')`,...files],{encoding:'utf8'});console.log(result.trim());assert.deepEqual(errors,[]);

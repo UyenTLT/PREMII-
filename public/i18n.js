@@ -1,6 +1,8 @@
 'use strict';
 // UI language only is persisted. Assessment data is never stored here.
 const translations = {
+  "Observation fields": "觀察項目",
+  "Only recorded responses are shown. Source note times are not shift boundaries.": "僅顯示已記錄的回應。來源記錄時間並非班別起訖時間。",
   "Workspace with database": "含資料庫的工作區",
   "observations in batch exports": "筆觀察記錄將批次匯出",
   "Group by Infant ID": "依嬰兒代碼分組",
