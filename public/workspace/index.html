@@ -4,13 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PREMII · File-based assessment</title>
-    <link rel="stylesheet" href="style.css?v=fio2-summary-1" />
-    <script src="i18n.js?v=fio2-summary-2" defer></script>
+    <link rel="stylesheet" href="style.css?v=infant-export-1" />
+    <script src="i18n.js?v=infant-export-1" defer></script>
     <script src="suggestions.js?v=fio2-1" defer></script>
     <script src="extraction.js?v=fio2-short-settings-1" defer></script>
     <script src="vendor/jszip.min.js" defer></script>
     <script src="spreadsheet.js?v=fio2-workspace-2" defer></script>
-    <script src="app.js?v=fio2-summary-2" defer></script>
+    <script src="app.js?v=infant-export-1" defer></script>
     <script src="vendor/mammoth.browser.min.js" defer></script>
     <script src="documents.js?v=fio2-workspace-2" defer></script>
     <script src="database.js?v=fio2-workspace-2" defer></script>
@@ -88,9 +88,9 @@
             <button id="save-imported-db" type="button" class="secondary">Save imported observations to database</button>
             <button id="quick-export-pdf" type="button" class="secondary" disabled>Export PDF</button>
             <button id="quick-export-excel" type="button" class="secondary">
-              Excel (.xlsx) · All observations</button
+              Export Excel (.xlsx)</button
             ><button id="quick-export-csv" type="button" class="secondary">
-              CSV · All observations
+              Export CSV
             </button>
           </div>
           <p id="batch-save-status" role="status" aria-live="polite"></p>
@@ -114,13 +114,13 @@
           <div class="record-actions">
             <button id="export-pdf" type="button" class="secondary" disabled>Export PDF</button>
             <button id="export-json" class="secondary" disabled>
-              JSON · All observations
+              Export JSON
             </button>
             <button id="export-excel" class="secondary" disabled>
-              Excel (.xlsx) · All observations
+              Export Excel (.xlsx)
             </button>
             <button id="export-csv" class="secondary" disabled>
-              CSV · All observations
+              Export CSV
             </button>
           </div>
         </div>
@@ -248,6 +248,17 @@
         <div class="editor-actions">
           <button id="cancel-merge" type="button" class="secondary">Cancel</button>
           <button type="submit">Save merged observation</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="file-export-dialog" aria-labelledby="file-export-title">
+      <form id="file-export-form">
+        <h2 id="file-export-title">Export observations</h2>
+        <label for="file-export-infant">Select Infant ID</label>
+        <select id="file-export-infant" required autofocus></select>
+        <div class="editor-actions">
+          <button id="cancel-file-export" type="button" class="secondary">Cancel</button>
+          <button id="download-selected-file" type="submit" disabled>Download</button>
         </div>
       </form>
     </dialog>

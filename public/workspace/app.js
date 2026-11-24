@@ -190,7 +190,7 @@ function render(){
  const pageCount=groups.length;
  const active=activeRecord();
  $('#record-count').textContent=records.length;$('#empty-state').hidden=!!records.length;
- for(const id of ['export-json','export-csv'])$('#'+id).disabled=!records.length;
+ for(const id of ['export-json','export-csv','quick-export-csv'])$('#'+id).disabled=!records.length||exportingExcel;
  $('#output-ready').hidden=!records.length;
  for(const id of ['export-pdf','quick-export-pdf'])$('#'+id).disabled=!active;
  $('#record-search-panel').hidden=!records.length;
@@ -199,7 +199,7 @@ function render(){
  $('#record-search-count').textContent=visibleRecords.length===records.length?'':(
   `${visibleRecords.length} / ${records.length} ${t('observations')}`
  );
- for(const id of ['export-excel','quick-export-excel']){$('#'+id).disabled=!records.length||exportingExcel;$('#'+id).textContent=t(exportingExcel?'Creating Excel…':'Excel (.xlsx) · All observations');}
+ for(const id of ['export-excel','quick-export-excel']){$('#'+id).disabled=!records.length||exportingExcel;$('#'+id).textContent=t(exportingExcel?'Creating Excel…':'Export Excel (.xlsx)');}
  const infantCount=new Set(records.filter(r=>r.infant!==null).map(r=>r.infant)).size;
  const exportCount=records.some(record=>record.mergedFrom)?' · '+exportableRecords().length+' '+t('observations in batch exports'):'';
  $('#output-summary').textContent=`${records.length} ${t('observations')} · ${infantCount} ${t('infants')}${exportCount}`;
@@ -356,9 +356,9 @@ observationDialog.addEventListener('close',()=>{
  observationTrigger=null;
  observationTriggerId=null;
 });
-function download(content,type,ext){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=`premii-${new Date().toISOString().slice(0,10)}.${ext}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-function exportRecords(){
- return exportableRecords().map(record=>{
+function download(content,type,ext,infant){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;const suffix=infant?'-'+infant.replace(/[^\p{L}\p{N}_-]+/gu,'_').slice(0,64):'';a.download=`premii${suffix}-${new Date().toISOString().slice(0,10)}.${ext}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function exportRecords(recordsToExport){
+ return recordsToExport.map(record=>{
   const output={};
   for(const field of editorFields)output[exportColumnLabel(field)]=readableValue(field,record[field]??null);
   output[fio2ExportLabel]=exportFiO2(record);
@@ -376,12 +376,85 @@ function exportRecords(){
   return output;
  });
 }
-$('#export-json').onclick=()=>download(JSON.stringify({instrument:'PREMII',totalScoreCalculated:false,mode:'file-only',exportFormat:'descriptive-observations-v1',records:exportRecords()},null,2),'application/json','json');
-$('#export-csv').onclick=()=>{
+function downloadCsv(recordsToExport,infant){
  const columns=[...PREMII_FIELDS.map(exportColumnLabel),fio2ExportLabel];
- const rows=exportableRecords().map(record=>[...PREMII_FIELDS.map(key=>readableValue(key,record[key]??null)),fio2Text(record)]);
+ const rows=recordsToExport.map(record=>[...PREMII_FIELDS.map(key=>readableValue(key,record[key]??null)),fio2Text(record)]);
  const escape=value=>'"'+String(value??'').replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';
- download('\uFEFF'+[columns,...rows].map(row=>row.map(escape).join(',')).join('\r\n'),'text/csv;charset=utf-8','csv');
+ download('\uFEFF'+[columns,...rows].map(row=>row.map(escape).join(',')).join('\r\n'),'text/csv;charset=utf-8','csv',infant);
+}
+
+const exportDialog=$('#file-export-dialog');
+const exportInfant=$('#file-export-infant');
+const exportSubmit=$('#download-selected-file');
+const exportFormats={json:'Export JSON',csv:'Export CSV',xlsx:'Export Excel (.xlsx)'};
+let exportFormat;
+let exportGroups=[];
+let exportTrigger;
+
+function openFileExport(format,trigger){
+ if(exportingExcel)return;
+ const groups=recordGroups(exportableRecords(),false);
+ if(!groups.length)return;
+ exportFormat=format;
+ exportGroups=groups;
+ exportTrigger=trigger;
+ $('#file-export-title').textContent=t(exportFormats[format]);
+ const placeholder=node('option',t('Choose an Infant ID'));
+ placeholder.value='';
+ placeholder.disabled=true;
+ exportInfant.replaceChildren(placeholder,...groups.map(([,items],index)=>{
+  const {infant,date,filename}=items[0];
+  const label=infant??[t('Infant ID not documented'),date,filename].filter(Boolean).join(' · ');
+  const option=node('option',label);
+  option.value=String(index);
+  return option;
+ }));
+ exportInfant.value='';
+ exportSubmit.disabled=true;
+ exportDialog.showModal();
+}
+exportInfant.onchange=()=>{exportSubmit.disabled=exportInfant.value==='';};
+$('#cancel-file-export').onclick=()=>exportDialog.close();
+exportDialog.addEventListener('close',()=>{
+ if(exportDialog.open)return;
+ exportGroups=[];
+ exportInfant.replaceChildren();
+ exportTrigger?.focus({preventScroll:true});
+ exportTrigger=null;
+});
+for(const [id,format] of [
+ ['export-json','json'],['export-csv','csv'],['quick-export-csv','csv'],
+ ['export-excel','xlsx'],['quick-export-excel','xlsx']
+]){
+ $('#'+id).onclick=event=>openFileExport(format,event.currentTarget);
+}
+$('#file-export-form').onsubmit=async event=>{
+ event.preventDefault();
+ if(exportInfant.value==='')return;
+ const recordsToExport=exportGroups[Number(exportInfant.value)]?.[1];
+ if(!recordsToExport?.length)return;
+ const infant=recordsToExport[0].infant;
+ const format=exportFormat;
+ const trigger=exportTrigger;
+ exportDialog.close();
+ if(format==='json'){
+  download(JSON.stringify({instrument:'PREMII',totalScoreCalculated:false,mode:'file-only',exportFormat:'descriptive-observations-v1',records:exportRecords(recordsToExport)},null,2),'application/json','json',infant);
+ }else if(format==='csv'){
+  downloadCsv(recordsToExport,infant);
+ }else{
+  exportingExcel=true;
+  render();
+  try{
+   const workbook=await createPremiiWorkbook(recordsToExport);
+   download(workbook,PREMII_XLSX_TYPE,'xlsx',infant);
+  }catch{
+   notify(t('Excel export failed. Please try again.'));
+  }finally{
+   exportingExcel=false;
+   render();
+   trigger?.focus({preventScroll:true});
+  }
+ }
 };
 window.addEventListener('beforeunload',e=>{if(records.length){e.preventDefault();e.returnValue='';}});
 window.addEventListener('languagechange',()=>{render();localizeDOM();$('#toast').textContent=translateText($('#toast').textContent);});
@@ -397,19 +470,8 @@ $('#record-search').addEventListener('input',()=>{
  render();
 });
 $('#quick-export-pdf').onclick=()=>$('#export-pdf').click();
-$('#quick-export-csv').onclick=()=>$('#export-csv').click();
 $('#previous-page').onclick=()=>{recordPage--;render();$('#records').scrollIntoView({block:'start'});};
 $('#next-page').onclick=()=>{recordPage++;render();$('#records').scrollIntoView({block:'start'});};
-
-$('#export-excel').onclick=async()=>{
- if(!records.length||exportingExcel)return;
- exportingExcel=true;render();
- try{const workbook=await createPremiiWorkbook(exportableRecords());download(workbook,PREMII_XLSX_TYPE,'xlsx');}
- catch{notify(t('Excel export failed. Please try again.'));}
- finally{exportingExcel=false;render();}
-};
-$('#quick-export-excel').onclick=()=>$('#export-excel').click();
-
 
 const editor = $('#observation-editor');
 let addingObservation=false;
