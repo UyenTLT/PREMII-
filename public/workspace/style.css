@@ -56,12 +56,15 @@ footer { flex-wrap: wrap; gap: 8px; color: #5b7167; }
 #record-search-panel label { font-size: 13px; font-weight: 650; }
 #record-search-count { margin: 4px 0 0; }
 #record-search-count:empty { display: none; }
-#records-table td:nth-child(3) {
-  min-width: 140px;
-  max-width: 240px;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
+#records-table { min-width: 1050px; font-size: 12px; }
+#records-table th, #records-table td { vertical-align: top; overflow-wrap: anywhere; }
+#records-table thead th { color: #416453; background: #f4f9f5; font-weight: 650; }
+#records-table th[scope="row"] { min-width: 84px; color: inherit; font-weight: 700; }
+#records-table td:nth-child(8) { min-width: 220px; }
+.case-values { margin: 0; padding: 0; list-style: none; }
+.case-values li + li { margin-top: 8px; }
+.case-sources summary { cursor: pointer; white-space: nowrap; }
+.case-sources button { display: block; margin-top: 6px; text-align: left; }
 #import-file-details { margin-top: 12px; }
 #import-file-details summary { cursor: pointer; }
 #import-issues { padding-left: 24px; overflow-wrap: anywhere; }
@@ -96,19 +99,10 @@ footer { flex-wrap: wrap; gap: 8px; color: #5b7167; }
 }
 .edit-marker { color: #236356; font-size: 12px; font-weight: 650; }
 
-.group-toggle { margin-top: 8px; }
-.group-toggle input { margin-inline-end: 6px; }
-.infant-group td { background: #f4f9f5; }
 .merge-badge { display: block; margin-top: 4px; white-space: normal; }
 .merge-conflict { margin-top: 12px; padding: 12px; border: 1px solid #dbe4e0; border-radius: 8px; }
 .merge-conflict ul, #merge-sources { padding-inline-start: 20px; overflow-wrap: anywhere; }
 #merge-error:not(:empty) { color: #8c3828; }
-
-.infant-group button::before {
-  content: "▸";
-  margin-inline-end: 8px;
-}
-.infant-group button[aria-expanded="true"]::before { content: "▾"; }
 
 #database-login { max-width: 370px; }
 #database-login label { margin-bottom: 12px; }

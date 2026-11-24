@@ -1,6 +1,14 @@
 'use strict';
 // UI language only is persisted. Assessment data is never stored here.
 const translations = {
+  "Case ID": "個案代碼",
+  "Birth GA": "出生週數",
+  "Assessment date": "評估日期",
+  "FiO₂ (OA code)": "吸入氧氣濃度（OA 代碼）",
+  "Feeding (FEED1)": "餵食（FEED1）",
+  "Weight on date": "當日體重",
+  "Apnea, bradycardia, desaturation, or caffeine evidence": "呼吸暫停、心搏過緩、血氧下降或咖啡因的記錄",
+  "Each row summarizes one assessment date per infant. Open Details to review the original notes.": "每列彙整一位嬰兒在同一評估日期的觀察資料。開啟詳情以查看原始記錄。",
   "Save imported observations to database": "將匯入的觀察記錄儲存至資料庫",
   "Wait until document import finishes.": "請等候文件匯入完成。",
   "There are no imported observations to save.": "沒有可儲存的匯入觀察記錄。",

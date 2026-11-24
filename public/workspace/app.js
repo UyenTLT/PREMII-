@@ -61,7 +61,9 @@ function sameShiftSources(record){
 function recordGroups(rows){
  const grouped=new Map();
  for(const row of rows){
-  const key=row.infant?'infant:'+row.infant:'record:'+row.recordId;
+  const key=row.infant
+   ?JSON.stringify([row.infant,row.date||null])
+   :'record:'+row.recordId;
   if(!grouped.has(key))grouped.set(key,[]);
   grouped.get(key).push(row);
  }
@@ -73,21 +75,78 @@ function showRecordInList(record,expandGroup=true){
   $('#record-search').value='';
   rows=records;
  }
- if($('#group-by-infant').checked){
-  const groups=recordGroups(rows);
-  const index=groups.findIndex(([,items])=>items.includes(record));
-  if(expandGroup&&index>=0)expandedGroups.add(groups[index][0]);
-  recordPage=Math.floor(Math.max(0,index)/RECORDS_PER_PAGE);
- }else{
-  recordPage=Math.floor(Math.max(0,rows.indexOf(record))/RECORDS_PER_PAGE);
+ const groups=recordGroups(rows);
+ const index=groups.findIndex(([,items])=>items.includes(record));
+ if(expandGroup&&index>=0)expandedGroups.add(groups[index][0]);
+ recordPage=Math.floor(Math.max(0,index)/RECORDS_PER_PAGE);
+}
+function birthGestationalAges(record){
+ const source=record.sourceText??'';
+ return [...source.matchAll(/(?:\b(?:Birth GA|Gestational age at birth|GA)|出生(?:胎齡|週數))\s*[:：=]?\s*(\d{1,2})\s*(?:weeks?|w|週|\+)\s*(\d)\s*(?:days?|d|天)?(?!\d)/gi)]
+  .map(([,weeks,days])=>Number(days)<7?`${Number(weeks)}w${days}d`:null).filter(Boolean);
+}
+function codedSummary(record,field){
+ if(record[field]!=null){
+  let description=fieldValue(record,field);
+  if(field==='OA'&&!record.manualEdits?.OA){
+   const match=record.evidence?.OA?.match(/(?:FiO[₂2]|oxygen concentration|供氧濃度|氧氣濃度)\s*[:=：]?\s*(\d+(?:\.\d+)?)\s*(%)?/i);
+   if(match){
+    const value=Number(match[1]);
+    const percent=!match[2]&&value<=1?Math.round(value*10000)/100:value;
+    if(percent>=21&&percent<=100)description=`${percent}%`;
+   }
+  }
+  return `${description} (${field} = ${record[field]})`;
  }
+ if(record.fieldStatus?.[field]==='conflicting')return record.evidence?.[field]||missing(record,field);
+ return '';
+}
+function eventEvidence(record){
+ const evidence=[];
+ for(const field of ['ABD1_1','ABD1_2','ABD2_1','ABD2_2','ABD3_1','ABD3_2','ABD4']){
+  if(record.manualEdits?.[field]||!record.evidence?.[field]){
+   if(record[field]!=null)evidence.push(`${t(labels[field])}: ${fieldValue(record,field)}`);
+  }else{
+   evidence.push(record.evidence[field]);
+  }
+ }
+ if(!record.mergedFrom){
+  evidence.push(...currentObservations(record.sourceText??'',record.date).split('\n')
+   .filter(line=>/\b(?:apnea|apnoea|bradycardia|desaturations?|caffeine)\b|呼吸暫停|心搏過緩|心跳過緩|血氧下降|咖啡因/i.test(line))
+   .map(line=>line.trim()).filter(line=>line&&!/^(?:ABD[1-4](?:_[12])?)\s*[:=：]/i.test(line)));
+ }
+ return [...new Set(evidence)];
+}
+function appendSummaryCell(row,items,valuesFor){
+ const values=new Set();
+ for(const item of items){
+  for(const value of valuesFor(item).filter(Boolean)){
+   values.add(value);
+  }
+ }
+ const cell=node('td');
+ if(values.size){
+  const list=node('ul',undefined,'case-values');
+  for(const value of values)list.append(node('li',value));
+  cell.append(list);
+ }else{
+  cell.textContent='—';
+ }
+ row.append(cell);
 }
 function render(){
  const visibleRecords=matchingRecords();
- const grouped=$('#group-by-infant').checked;
- const groups=grouped?recordGroups(visibleRecords):[];
- const pageCount=grouped?groups.length:visibleRecords.length;
+ const groups=recordGroups(visibleRecords);
+ const pageCount=groups.length;
  const active=activeRecord();
+ const gestationalAgesByInfant=new Map();
+ for(const item of visibleRecords){
+  if(!item.infant)continue;
+  const ages=birthGestationalAges(item);
+  if(!ages.length)continue;
+  if(!gestationalAgesByInfant.has(item.infant))gestationalAgesByInfant.set(item.infant,new Set());
+  for(const age of ages)gestationalAgesByInfant.get(item.infant).add(age);
+ }
  $('#record-count').textContent=records.length;$('#empty-state').hidden=!!records.length;$('#results-section').hidden=!active||!detailsOpen;
  for(const id of ['export-json','export-csv'])$('#'+id).disabled=!records.length;
  $('#output-ready').hidden=!records.length;
@@ -109,57 +168,55 @@ function render(){
  $('#page-summary').textContent=`${t('Page')} ${recordPage+1} / ${Math.max(1,Math.ceil(pageCount/RECORDS_PER_PAGE))} · ${visibleRecords.length} ${t('observations')}`;
  const body=$('#records-table tbody');
  body.replaceChildren();
- function appendObservation(r){
-  const row=node('tr',undefined,r.recordId===selectedRecordId?'selected-record':undefined);
-  const view=node('button',t('View source results'),'secondary');
-  view.type='button';
-  view.onclick=()=>{
-   selectedRecordId=r.recordId;
-   detailsOpen=true;
-   render();
-   $('#selected-note').focus();
-  };
-  const timestamp=[r.date,r.noteTime].filter(Boolean).join(' ');
-  const documented=Object.keys(labels).filter(key=>r[key]!=null).length;
-  for(const value of [
-   r.infant??t('Not found in source'),
-   timestamp||t('Date not documented'),
-   r.mergedFrom?t('Merged observation'):r.filename,
-   r.shift?`${t('Shift')} ${r.shift}`:t('Shift not documented'),
-   `${documented} / ${Object.keys(labels).length}`
-  ])row.append(node('td',value));
+ const offset=recordPage*RECORDS_PER_PAGE;
+ for(const [key,items] of groups.slice(offset,offset+RECORDS_PER_PAGE)){
+  const row=node('tr',undefined,items.includes(active)?'selected-record':undefined);
+  const id=node('th',items[0].infant??t('Infant ID not documented'));
+  id.scope='row';
+  row.append(id);
+  // Use merged values in the summary and keep all original notes accessible.
+  const mergedIds=new Set(items.flatMap(item=>item.mergedFrom?.map(source=>source.recordId)??[]));
+  const observations=items.filter(item=>!mergedIds.has(item.recordId));
+  const {infant,date}=items[0];
+  const birthAges=infant?[...(gestationalAgesByInfant.get(infant)??[])]:birthGestationalAges(items[0]);
+  appendSummaryCell(row,[birthAges],ages=>ages);
+  row.append(node('td',date||t('Date not documented')));
+  appendSummaryCell(row,observations,item=>[
+   [codedSummary(item,'RES1'),codedSummary(item,'RES2')].filter(Boolean).join(' · ')
+  ]);
+  appendSummaryCell(row,observations,item=>[codedSummary(item,'OA')]);
+  appendSummaryCell(row,observations,item=>[codedSummary(item,'FEED1')]);
+  appendSummaryCell(row,observations,item=>[item.WEIGHT1==null?'':[
+   `${item.WEIGHT1} g`,item.WEIGHT2!==item.date?item.WEIGHT2:null
+  ].filter(Boolean).join(' · ')]);
+  appendSummaryCell(row,observations,eventEvidence);
   const action=node('td');
-  action.append(view);
-  if(mergedParent(r))action.append(node('small',t('Included in merged observation'),'merge-badge'));
+  const details=node('details',undefined,'case-sources');
+  details.open=expandedGroups.has(key);
+  details.ontoggle=()=>{
+   if(!details.isConnected)return;
+   if(details.open)expandedGroups.add(key);
+   else expandedGroups.delete(key);
+  };
+  details.append(node('summary',`${items.length} ${t('observations')}`));
+  for(const item of items){
+   const timestamp=[item.date,item.noteTime].filter(Boolean).join(' ')||t('Date not documented');
+   const source=item.mergedFrom?t('Merged observation'):item.filename;
+   const view=node('button',`${timestamp} · ${source}`,'secondary');
+   view.type='button';
+   if(item===active)view.setAttribute('aria-current','true');
+   view.onclick=()=>{
+    expandedGroups.add(key);
+    selectedRecordId=item.recordId;
+    detailsOpen=true;
+    render();
+    $('#selected-note').focus();
+   };
+   details.append(view);
+  }
+  action.append(details);
   row.append(action);
   body.append(row);
- }
- const offset=recordPage*RECORDS_PER_PAGE;
- if(grouped){
-  for(const [key,items] of groups.slice(offset,offset+RECORDS_PER_PAGE)){
-   const groupRow=node('tr',undefined,'infant-group');
-   const cell=node('td');
-   cell.colSpan=6;
-   const open=expandedGroups.has(key);
-   const toggle=node('button',`${items[0].infant??t('Infant ID not documented')} · ${items.length} ${t('observations')}`,'secondary');
-   toggle.type='button';
-   toggle.dataset.groupKey=key;
-   toggle.setAttribute('aria-expanded',String(open));
-   toggle.onclick=()=>{
-    if(open)expandedGroups.delete(key);
-    else expandedGroups.add(key);
-    render();
-    for(const button of body.querySelectorAll('[data-group-key]')){
-     if(button.dataset.groupKey===key){button.focus();break;}
-    }
-   };
-   cell.append(toggle);
-   groupRow.append(cell);
-   body.append(groupRow);
-   if(open)items.forEach(appendObservation);
-  }
- }else{
-  visibleRecords.slice(offset,offset+RECORDS_PER_PAGE).forEach(appendObservation);
  }
  $('#merge-observations').hidden=sameShiftSources(active).length<2;
  $('#undo-observation-merge').hidden=!active?.mergedFrom;
@@ -216,10 +273,6 @@ window.addEventListener('languagechange',()=>{render();localizeDOM();$('#toast')
 render();localizeDOM();
 
 $('#show-results').onclick=()=>$('#records').focus();
-$('#group-by-infant').addEventListener('change',()=>{
- recordPage=0;
- render();
-});
 $('#record-search').addEventListener('input',()=>{
  recordPage=0;
  render();
