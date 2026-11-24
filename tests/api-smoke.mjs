@@ -278,6 +278,30 @@ try {
   await api(deletePath, null, 404, entry, "DELETE");
   await api(deletePath, null, 200, cookie, "DELETE");
   assert.equal((await api("workspace")).data.records.length, 1);
+  const batch = {
+    action: "save_batch",
+    observations: [
+      save.observation,
+      save.observation,
+      { infant: "" },
+      { ...save.observation, infant: "SYNTH-OTHER" },
+    ],
+  };
+  assert.deepEqual((await api("workspace", batch, 200, entry)).data, {
+    saved: 2,
+    duplicates: 1,
+    invalid: 1,
+  });
+  assert.deepEqual((await api("workspace", batch, 200, entry)).data, {
+    saved: 0,
+    duplicates: 3,
+    invalid: 1,
+  });
+  assert.equal(
+    (await api("workspace", null, 200, entry)).data.records.length,
+    2,
+  );
+  assert.equal((await api("workspace")).data.records.length, 1);
   await api("logout", {}, 200, entry);
   await api("data", null, 401, entry);
   console.log(

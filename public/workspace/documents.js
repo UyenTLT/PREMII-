@@ -189,7 +189,53 @@ function buildReport(){
  }
  return report;
 }
-$('#export-pdf').onclick=()=>{if(!activeRecord())return;buildReport();notify(t('Choose Save as PDF in the print dialog. The compact report uses one or two A4 pages.'));window.print();};
+const pdfDialog=$('#pdf-dialog');
+const pdfInfant=$('#pdf-infant');
+const pdfObservation=$('#pdf-observation');
+let pdfGroups=[];
+
+function pdfChoice(label,value){
+ const option=node('option',label);
+ option.value=value;
+ return option;
+}
+
+function renderPdfObservations(preferredId){
+ const notes=pdfGroups[Number(pdfInfant.value)]?.[1]??[];
+ pdfObservation.replaceChildren(...notes.map(record=>{
+  const time=[record.date,record.noteTime].filter(Boolean).join(' ')||t('Date not documented');
+  const shift=record.shift?t('Shift')+' '+record.shift:t('Shift not documented');
+  const source=record.mergedFrom?t('Merged observation'):[record.filename,record.sourceLine?t('Source line')+' '+record.sourceLine:''].filter(Boolean).join(' · ');
+  return pdfChoice([time,shift,source].join(' · '),record.recordId);
+ }));
+ if(notes.some(record=>record.recordId===preferredId))pdfObservation.value=preferredId;
+ $('#pdf-observation-field').hidden=notes.length<2;
+}
+
+$('#export-pdf').onclick=()=>{
+ if(!records.length)return;
+ pdfGroups=recordGroups(records);
+ pdfInfant.replaceChildren(...pdfGroups.map(([,notes],index)=>
+  pdfChoice(notes[0].infant??t('Infant ID not documented'),String(index))
+ ));
+ const current=pdfGroups.findIndex(([,notes])=>notes.some(record=>record.recordId===selectedRecordId));
+ if(current>=0)pdfInfant.value=String(current);
+ renderPdfObservations(selectedRecordId);
+ pdfDialog.showModal();
+};
+pdfInfant.onchange=()=>renderPdfObservations();
+$('#cancel-pdf').onclick=()=>pdfDialog.close();
+$('#pdf-form').onsubmit=event=>{
+ event.preventDefault();
+ const id=pdfObservation.value;
+ if(!records.some(record=>record.recordId===id))return;
+ selectedRecordId=id;
+ pdfDialog.close();
+ render();
+ buildReport();
+ notify(t('Choose Save as PDF in the print dialog. The compact report uses one or two A4 pages.'));
+ window.print();
+};
 
 $('#source-file').disabled=false;
 $('#startup-warning').hidden=true;

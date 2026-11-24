@@ -98,9 +98,62 @@ async function refreshDatabase(){
  }
 }
 
+function databaseFields(observation){
+ return Object.fromEntries(editorFields.map(field=>[field,observation[field]??null]));
+}
+
+function promptDatabaseLogin(){
+ $('#database').scrollIntoView();
+ databaseLogin.querySelector('input').focus();
+ databaseMessage.textContent=t('Sign in to use the database.');
+}
+
+const batchSaveStatus=$('#batch-save-status');
+$('#save-imported-db').onclick=async event=>{
+ if($('#source-file').disabled){
+  batchSaveStatus.textContent=t('Wait until document import finishes.');
+  return;
+ }
+ const imported=exportableRecords().filter(record=>record.sourceText);
+ if(!imported.length){
+  batchSaveStatus.textContent=t('There are no imported observations to save.');
+  return;
+ }
+ if(!databaseSignedIn){
+  promptDatabaseLogin();
+  return;
+ }
+ const button=event.currentTarget;
+ button.disabled=true;
+ batchSaveStatus.textContent=t('Saving imported observations…');
+ try{
+  const {saved,duplicates,invalid}=await databaseRequest('','POST',{
+   action:'save_batch',observations:imported.map(databaseFields)
+  });
+  const summary=[
+   saved+' '+t('observations saved'),
+   duplicates+' '+t('duplicates skipped'),
+   invalid+' '+t('invalid observations skipped')
+  ].join(' · ');
+  batchSaveStatus.textContent=summary;
+  await refreshDatabase().catch(()=>{
+   batchSaveStatus.textContent=summary+' '+t('Reopen the page to refresh the database list.');
+  });
+ }catch(error){
+  batchSaveStatus.textContent=t(error.message);
+ }finally{
+  button.disabled=false;
+ }
+};
+$('#source-file').addEventListener('change',()=>{batchSaveStatus.textContent='';});
+$('#file-drop-zone').addEventListener('drop',()=>{batchSaveStatus.textContent='';});
+$('#clear-source').addEventListener('click',()=>{
+ if(!records.length)batchSaveStatus.textContent='';
+});
+
 async function saveDatabaseObservation(observation){
  if(!databaseSignedIn)throw new Error('Sign in to use the database.');
- const fields=Object.fromEntries(editorFields.map(field=>[field,observation[field]??null]));
+ const fields=databaseFields(observation);
  const {duplicate}=await databaseRequest('','POST',{action:'save',observation:fields});
  const message=t(duplicate?'An identical observation is already saved.':'Observation saved to the database.');
  databaseMessage.textContent=message;
@@ -147,9 +200,7 @@ $('#save-observation-db').onclick=async event=>{
  const record=activeRecord();
  if(!record)return;
  if(!databaseSignedIn){
-  $('#database').scrollIntoView();
-  databaseLogin.querySelector('input').focus();
-  databaseMessage.textContent=t('Sign in to use the database.');
+  promptDatabaseLogin();
   return;
  }
  const button=event.currentTarget;

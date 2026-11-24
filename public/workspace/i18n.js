@@ -1,6 +1,16 @@
 'use strict';
 // UI language only is persisted. Assessment data is never stored here.
 const translations = {
+  "Save imported observations to database": "將匯入的觀察記錄儲存至資料庫",
+  "Wait until document import finishes.": "請等候文件匯入完成。",
+  "There are no imported observations to save.": "沒有可儲存的匯入觀察記錄。",
+  "Saving imported observations…": "正在儲存匯入的觀察記錄…",
+  "observations saved": "筆觀察記錄已儲存",
+  "duplicates skipped": "筆重複記錄已略過",
+  "invalid observations skipped": "筆無效觀察記錄已略過",
+  "Select Infant ID": "選擇嬰兒代碼",
+  "Select observation": "選擇觀察記錄",
+  "Print or save as PDF": "列印或儲存為 PDF",
   "Observation fields": "觀察項目",
   "Only recorded responses are shown. Source note times are not shift boundaries.": "僅顯示已記錄的回應。來源記錄時間並非班別起訖時間。",
   "Database": "資料庫",

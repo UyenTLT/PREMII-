@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "../../../lib/db";
+import { db, tx } from "../../../lib/db";
 
 export const runtime = "nodejs";
 const fields = [
@@ -142,8 +142,12 @@ async function handle(req: NextRequest) {
   if (!account) return respond({ error: "sign_in_required" }, 401);
   let body: Record<string, unknown> = {};
   if (req.method === "POST") {
+    const maximumBytes = 8_000_000;
+    if (Number(req.headers.get("content-length")) > maximumBytes)
+      return respond({ error: "invalid_record" }, 413);
     const raw = await req.text();
-    if (raw.length > 25_000) return respond({ error: "invalid_record" }, 413);
+    if (Buffer.byteLength(raw) > maximumBytes)
+      return respond({ error: "invalid_record" }, 413);
     try {
       body = JSON.parse(raw);
       if (!body || typeof body !== "object" || Array.isArray(body))
@@ -167,6 +171,41 @@ async function handle(req: NextRequest) {
         }),
       ),
     });
+  }
+  if (req.method === "POST" && body.action === "save_batch") {
+    const input = body.observations;
+    if (!Array.isArray(input) || !input.length || input.length > 3000)
+      return respond({ error: "invalid_record" }, 400);
+    const rows = input.map(observation).filter((data) => data !== null);
+    const invalid = input.length - rows.length;
+    const saved = await tx(async () => {
+      let count = 0;
+      const time = new Date().toISOString();
+      for (let offset = 0; offset < rows.length; offset += 100) {
+        const batch = rows.slice(offset, offset + 100);
+        const parameters = batch.flatMap((data) => {
+          const json = JSON.stringify(data);
+          return [
+            randomUUID(),
+            account,
+            createHash("sha256").update(json).digest("hex"),
+            time,
+            json,
+          ];
+        });
+        const placeholders = batch.map(() => "(?,?,?,?,?)").join(",");
+        const result = await db
+          .prepare(
+            "INSERT INTO workspace_records VALUES " +
+              placeholders +
+              " ON CONFLICT(owner,fingerprint) DO NOTHING",
+          )
+          .run(...parameters);
+        count += Number(result.changes);
+      }
+      return count;
+    });
+    return respond({ saved, duplicates: rows.length - saved, invalid });
   }
   if (req.method === "POST" && body.action === "save") {
     const data = observation(body.observation);
