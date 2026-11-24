@@ -110,16 +110,6 @@ footer { flex-wrap: wrap; gap: 8px; color: #5b7167; }
 }
 .infant-group button[aria-expanded="true"]::before { content: "▾"; }
 
-.pdf-picker {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 10px;
-  margin-top: 14px;
-}
-.pdf-picker label { flex: 1 1 230px; min-width: 0; max-width: 560px; font-size: 13px; }
-.pdf-picker select { min-width: 0; max-width: 100%; }
-.pdf-picker #export-pdf { margin-bottom: 0; }
 #database-login { max-width: 370px; }
 #database-login label { margin-bottom: 12px; }
 #database-login a { display: inline-block; margin: 10px 0 0 8px; text-decoration: underline; }

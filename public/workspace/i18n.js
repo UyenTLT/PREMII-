@@ -24,7 +24,6 @@ const translations = {
   "Database unavailable. Please try again.": "資料庫暫時無法使用，請重試。",
   "Invalid account ID or password.": "帳戶 ID 或密碼錯誤。",
   "Reopen the page to refresh the database list.": "請重新開啟頁面以更新資料庫清單。",
-  "Select a note for PDF": "選擇要匯出 PDF 的記錄",
   "observations in batch exports": "筆觀察記錄將批次匯出",
   "Group by Infant ID": "依嬰兒代碼分組",
   "Merge same-shift observations": "合併同班別觀察記錄",

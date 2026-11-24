@@ -4,13 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PREMII · File-based assessment</title>
-    <link rel="stylesheet" href="style.css?v=database-1" />
-    <script src="i18n.js?v=database-1" defer></script>
+    <link rel="stylesheet" href="style.css?v=pdf-selection-cleanup" />
+    <script src="i18n.js?v=pdf-selection-cleanup" defer></script>
     <script src="suggestions.js?v=20261117-excel" defer></script>
     <script src="extraction.js?v=20261117-excel" defer></script>
     <script src="vendor/jszip.min.js" defer></script>
     <script src="spreadsheet.js?v=20261117-excel" defer></script>
-    <script src="app.js?v=database-1" defer></script>
+    <script src="app.js?v=pdf-selection-cleanup" defer></script>
     <script src="vendor/mammoth.browser.min.js" defer></script>
     <script src="documents.js?v=infant-groups-default" defer></script>
     <script src="database.js?v=1" defer></script>
@@ -84,18 +84,13 @@
           <p id="output-summary" role="status" aria-live="polite"></p>
           <div class="output-actions">
             <button id="show-results" type="button">View results</button
-            ><button id="quick-export-excel" type="button" class="secondary">
+            >
+            <button id="quick-export-pdf" type="button" class="secondary" disabled>PDF · Selected note</button>
+            <button id="quick-export-excel" type="button" class="secondary">
               Excel (.xlsx) · All observations</button
             ><button id="quick-export-csv" type="button" class="secondary">
               CSV · All observations
             </button>
-          </div>
-          <div class="pdf-picker">
-            <label for="quick-pdf-note">
-              Select a note for PDF
-              <select id="quick-pdf-note" data-pdf-note disabled></select>
-            </label>
-            <button id="quick-export-pdf" type="button" class="secondary" disabled>PDF · Selected note</button>
           </div>
           <p id="pdf-selection" class="muted"></p>
           <p class="muted">
@@ -115,6 +110,7 @@
         <div class="records-heading">
           <h2>Extracted observations</h2>
           <div class="record-actions">
+            <button id="export-pdf" type="button" class="secondary" disabled>PDF · Selected note</button>
             <button id="export-json" class="secondary" disabled>
               JSON · All observations
             </button>
@@ -125,13 +121,6 @@
               CSV · All observations
             </button>
           </div>
-        </div>
-        <div class="pdf-picker" id="records-pdf-picker" hidden>
-          <label for="records-pdf-note">
-            Select a note for PDF
-            <select id="records-pdf-note" data-pdf-note disabled></select>
-          </label>
-          <button id="export-pdf" type="button" class="secondary" disabled>PDF · Selected note</button>
         </div>
         <p id="records-pdf-selection" class="muted" hidden></p>
         <div id="record-search-panel" hidden>
