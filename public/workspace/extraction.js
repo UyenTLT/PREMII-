@@ -42,14 +42,18 @@ function currentObservations(text,date){
   return true;
  }).join('\n');
 }
-function ventilatorTimeline(line,noteDate){
- const header=line.match(/^\s*(?:[#@•-]\s*)?(?:Venti(?:lation|lator)?|呼吸器(?:設定)?)\s*:\s*/i);
- if(!header)return [];
- const timeline=line.slice(header[0].length);
- const mode=String.raw`(?:IMV|SIMV|NIMV|NIPPV|BiPAP|n?CPAP|HFOV)`;
- const date=String.raw`(?:\d{4}[/-])?\d{1,2}\/\d{1,2}`;
- const entries=new RegExp(String.raw`(?:^|[ \t,;→>])(?:`+mode+String.raw`\s+)?(`+date+String.raw`)(?:\s*[-–~]\s*(`+date+String.raw`|\d{1,2}))?\s*(?:`+mode+String.raw`\s*)?\[\s*(\d+(?:\.\d+)?)\s*%[\s,\d./]*\]`,'gi');
- if(!new RegExp(String.raw`\b`+mode+String.raw`\b`,'i').test(timeline))return [];
+function ventilatorFiO2(text,noteDate){
+ const readings=[];
+ const mode=String.raw`(?:IMV|SIMV|NIMV|NIV|NIPPV|BiPAP|b?N?CPAP|HFOV|HFNC)`;
+ const date=String.raw`(?:\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}/\d{1,2})`;
+ const range=String.raw`\(?(`+date+String.raw`)(?:\s*[-–~]\s*(`+date+String.raw`|\d{1,2}))?\)?`;
+ const tuple=String.raw`\[\s*(\d+(?:\.\d+)?)\s*%(?:[ ,\t]+\d+(?:\.\d+)?(?:\s*/\s*\d+(?:\.\d+)?)?)*(?:\s*cm\s*H2O)?\s*\]`;
+ const entries=new RegExp(String.raw`(?:^|[ \t,;→>])(?:`+
+  String.raw`(`+mode+String.raw`)\s*(?:`+range+String.raw`\s*)?|`+
+  range+String.raw`\s*(?:intubated\s+)?(`+mode+String.raw`)?\s*)`+tuple,'gi');
+ const header=/^\s*(?:[#@•-]\s*)?(?:Venti(?:lation|lator)?(?: settings)?|Respiratory support|呼吸器(?:設定)?)\s*:\s*/i;
+ const prefix=/^\s*(?:[#@•-]\s*)?/;
+ const excluded=/\b(?:planned|consider|target|goal|if needed)\b|預計|目標|考慮/i;
  const year=noteDate?.slice(0,4)??'2000';
  function iso(raw,defaultMonth){
   const parts=raw.split(/[/-]/);
@@ -57,58 +61,33 @@ function ventilatorTimeline(line,noteDate){
   if(parts.length===2)parts.unshift(year);
   return validDate([parts[0],...parts.slice(1).map(part=>part.padStart(2,'0'))].join('-'));
  }
- const readings=[];
- for(const [,startText,endText,rawPercent] of timeline.matchAll(entries)){
-  const percent=Number(rawPercent);
-  const start=iso(startText);
-  const end=endText&&start?iso(endText,start.slice(5,7)):start;
-  if(!start||!end||end<start||(noteDate&&start>noteDate)||percent<21||percent>100)continue;
-  if(noteDate&&start<=noteDate&&noteDate<=end){
-   readings.push({percent,referenceDate:null});
-  }else{
-   const reference=endText??startText;
-   const referenceDate=reference.split(/[/-]/).length===3?end:
-    `${Number(end.slice(5,7))}/${Number(end.slice(8,10))}`;
-   readings.push({percent,referenceDate});
-  }
- }
- return readings;
-}
-function ventilatorFiO2(text,noteDate){
- const readings=[];
- // IMV-style tuples include rate and a pressure pair. CPAP can list only FiO₂ and pressure.
- const prefix=String.raw`^\s*(?:[#@•-]\s*)?(?:(?:Venti|Ventilation|Ventilator(?: settings)?|呼吸器(?:設定)?)\s*:\s*)?(?:(\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}\/\d{1,2})\s+)?`;
- const percent=String.raw`(\d+(?:\.\d+)?)\s*%`;
- const settings=[
-  new RegExp(prefix+String.raw`(?:IMV|SIMV|NIMV|NIPPV|BiPAP|n?CPAP|HFOV)\s*\[\s*`+percent+String.raw`\s*,\s*\d+(?:\.\d+)?\s*,\s*\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?\s*\]`,'i'),
-  new RegExp(prefix+String.raw`n?CPAP\s*\[\s*`+percent+String.raw`(?:\s*,\s*\d+(?:\.\d+)?\s*(?:cm\s*H2O)?)?\s*\]`,'i'),
- ];
  for(const line of text.split('\n')){
   const normalized=line.normalize('NFKC');
-  const timeline=ventilatorTimeline(normalized,noteDate);
-  if(timeline.length){
-   readings.push(...timeline.map(reading=>({...reading,evidence:line.trim()})));
-   continue;
-  }
-  const match=settings.map(pattern=>normalized.match(pattern)).find(Boolean);
-  if(!match)continue;
-  const percent=Number(match[2]);
-  if(percent<21||percent>100)continue;
-  const settingDate=match[1];
-  let referenceDate=null;
-  if(settingDate){
-   const parts=settingDate.split(/[/-]/);
-   const fullDate=parts.length===3?validDate([parts[0],...parts.slice(1).map(part=>part.padStart(2,'0'))].join('-')):null;
-   if(parts.length===3&&!fullDate)continue;
-   if(fullDate){
-    if(fullDate!==noteDate)referenceDate=fullDate;
-   }else{
-    const [month,day]=settingDate.split('/').map(Number);
-    if(!validDate(`2000-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`))continue;
-    if(!noteDate||month!==Number(noteDate.slice(5,7))||day!==Number(noteDate.slice(8,10)))referenceDate=settingDate;
+  if(excluded.test(normalized))continue;
+  const settings=normalized.replace(header,'').replace(prefix,'');
+  let hasMode=false;
+  for(const match of settings.matchAll(entries)){
+   const [,firstMode,firstStart,firstEnd,secondStart,secondEnd,secondMode,rawPercent]=match;
+   if(!hasMode&&match.index!==0)break;
+   if(!hasMode&&!firstMode&&!secondMode)break;
+   hasMode=true;
+   const percent=Number(rawPercent);
+   if(percent<21||percent>100)continue;
+   const evidence=line.trim();
+   const startText=firstStart??secondStart;
+   const endText=firstEnd??secondEnd;
+   if(!startText){
+    readings.push({percent,evidence,referenceDate:null});
+    continue;
    }
+   const start=iso(startText);
+   const end=endText&&start?iso(endText,start.slice(5,7)):start;
+   if(!start||!end||end<start||(noteDate&&start>noteDate))continue;
+   const reference=endText??startText;
+   const referenceDate=noteDate&&start<=noteDate&&noteDate<=end?null:
+    reference.split(/[/-]/).length===3?end:`${Number(end.slice(5,7))}/${Number(end.slice(8,10))}`;
+   readings.push({percent,evidence,referenceDate});
   }
-  readings.push({percent,evidence:line.trim(),referenceDate});
  }
  return readings;
 }
