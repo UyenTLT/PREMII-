@@ -4,15 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PREMII · File-based assessment</title>
-    <link rel="stylesheet" href="style.css?v=workspace-ui-1" />
-    <script src="i18n.js?v=workspace-ui-1" defer></script>
+    <link rel="stylesheet" href="style.css?v=multi-file-1" />
+    <script src="i18n.js?v=multi-file-1" defer></script>
     <script src="suggestions.js?v=20261117-excel" defer></script>
     <script src="extraction.js?v=20261117-excel" defer></script>
     <script src="vendor/jszip.min.js" defer></script>
     <script src="spreadsheet.js?v=20261117-excel" defer></script>
     <script src="app.js?v=20261117-excel" defer></script>
     <script src="vendor/mammoth.browser.min.js" defer></script>
-    <script src="documents.js?v=20261117-excel" defer></script>
+    <script src="documents.js?v=multi-file-1" defer></script>
   </head>
   <body>
     <noscript
@@ -56,14 +56,20 @@
         <p id="startup-warning" role="status">
           Preparing document import. If this message remains, reload the page.
         </p>
-        <label
-          >Source documents<input
+        <div id="file-drop-zone" class="file-drop-zone">
+          <label for="source-file">Select one or more files</label>
+          <input
             id="source-file"
             disabled
             type="file"
             accept=".txt,.docx,.pdf"
+            aria-describedby="file-selection-hint"
             multiple
-        /></label>
+          />
+          <p class="muted" id="file-selection-hint">
+            Select multiple files in the file picker, or drag and drop them here.
+          </p>
+        </div>
         <p class="muted">
           Files are read locally, never uploaded. Maximum 10 MB per file and 200
           PDF pages. Scanned PDFs need OCR first.

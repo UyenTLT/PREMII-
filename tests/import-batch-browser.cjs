@@ -5,8 +5,9 @@ const fs=require('node:fs');
 (async()=>{const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});try{
  const page=await browser.newPage({viewport:{width:1280,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(process.env.PREMII_TEST_URL||'http://127.0.0.1:3000');
  const files=process.argv.slice(2);const count=files.length?Number(process.env.PREMII_EXPECTED_RECORDS):65;const infantCount=files.length?Number(process.env.PREMII_EXPECTED_INFANTS):65;assert.ok(Number.isInteger(count)&&count>0,'Set PREMII_EXPECTED_RECORDS for private inputs');assert.ok(Number.isInteger(infantCount)&&infantCount>0,'Set PREMII_EXPECTED_INFANTS for private inputs');
- const fixture=Array.from({length:65},(_,i)=>`【研究ID：TEST-${String(i+1).padStart(3,'0')}】\nDate: 2026-11-03\nOn nCPAP\nFiO2: 35%\nWeight: 1200 g`).join('\n');
- await page.setInputFiles('#source-file',files.length?files:{name:'batch.txt',mimeType:'text/plain',buffer:Buffer.from(fixture)});
+ const fixture=Array.from({length:65},(_,i)=>`【研究ID：TEST-${String(i+1).padStart(3,'0')}】\nDate: 2026-11-03\nOn nCPAP\nFiO2: 35%\nWeight: 1200 g`);
+ const batch= [fixture.slice(0,32),fixture.slice(32)].map((items,index)=>({name:`batch-${index+1}.txt`,mimeType:'text/plain',buffer:Buffer.from(items.join('\n'))}));
+ await page.setInputFiles('#source-file',files.length?files:batch);
  await page.waitForFunction(()=>!document.querySelector('#source-file').disabled,{},{timeout:120000});
  assert.equal(await page.locator('#record-count').innerText(),String(count));assert.equal(await page.locator('#records-table tbody tr').count(),20);assert.equal(await page.locator('#output-ready').isVisible(),true);assert.match(await page.locator('#output-summary').innerText(),new RegExp(String(count)));assert.equal(await page.locator('#quick-export-pdf').isEnabled(),true);
  assert.equal(await page.locator('#results-section').evaluate(el=>el.compareDocumentPosition(document.querySelector('#records'))&Node.DOCUMENT_POSITION_FOLLOWING),4);
@@ -36,6 +37,16 @@ for cells,record in zip(sheet.iter_rows(min_row=2),records):
  await page.click('#show-results');await page.waitForTimeout(500);await page.screenshot({path:out+'/premii-import-results-mobile.png'});assert.deepEqual(errors,[]);
  // A later upload must show its own output, not keep an earlier selected observation.
  await page.setInputFiles('#source-file',{name:'appended.txt',mimeType:'text/plain',buffer:Buffer.from('Study ID: APPEND-TEST\nOn nCPAP')});await page.waitForFunction(()=>!document.querySelector('#source-file').disabled);assert.match(await page.locator('#selected-note').innerText(),/APPEND-TEST/);assert.equal(await page.locator('#next-page').isDisabled(),true);
+ const dropped=await page.evaluateHandle(()=>{
+  const transfer=new DataTransfer();
+  for(const id of ['DROP-001','DROP-002'])transfer.items.add(new File([`Study ID: ${id}\nOn nCPAP`],`${id}.txt`,{type:'text/plain'}));
+  return transfer;
+ });
+ await page.locator('#file-drop-zone').dispatchEvent('drop',{dataTransfer:dropped});
+ await dropped.dispose();
+ await page.waitForFunction(()=>!document.querySelector('#source-file').disabled);
+ assert.equal(await page.locator('#record-count').innerText(),String(count+3));
+ assert.match(await page.locator('#selected-note').innerText(),/DROP-001/);
  // Clear, then verify an all-failed import never reports success or enables exports.
  page.on('dialog',d=>d.accept());await page.click('#clear-source');await page.setInputFiles('#source-file',{name:'bad.bin',mimeType:'application/octet-stream',buffer:Buffer.from('invalid')});await page.waitForFunction(()=>!document.querySelector('#source-file').disabled);assert.equal(await page.locator('#output-ready').isVisible(),false);assert.equal(await page.locator('#export-pdf').isDisabled(),true);assert.match(await page.locator('#import-status').innerText(),/未產生結果/);
  const broken=await browser.newPage();await broken.route('**/documents.js*',route=>route.abort());await broken.goto(process.env.PREMII_TEST_URL||'http://127.0.0.1:3000');assert.equal(await broken.locator('#source-file').isDisabled(),true);assert.equal(await broken.locator('#startup-warning').isVisible(),true);await broken.close();

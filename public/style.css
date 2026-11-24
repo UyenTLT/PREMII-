@@ -38,3 +38,16 @@ textarea{font:12px/1.8 ui-monospace,"Microsoft JhengHei",monospace;width:100%;re
 }
 .results-heading h2 { margin: 0; }
 footer { flex-wrap: wrap; gap: 8px; color: #5b7167; }
+
+.file-drop-zone {
+  border: 1px dashed #83a497;
+  border-radius: 10px;
+  background: #f7fbf8;
+  padding: 16px;
+}
+.file-drop-zone.dragging {
+  border-color: var(--green);
+  background: #eaf5ee;
+}
+.file-drop-zone label { font-size: 14px; font-weight: 650; }
+.file-drop-zone .muted { margin: 8px 0 0; }

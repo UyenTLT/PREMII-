@@ -34,7 +34,7 @@ const importErrors={
  count:'Too many observations. Use smaller document batches.'
 };
 async function importDocuments(files){
- if(!files.length)return;
+ if(!files.length||$('#source-file').disabled)return;
  const generation=++importGeneration;const startCount=records.length;lastImportSummary=null;
  let succeeded=0,failed=0,firstNewRecordId=null;
  $('#source-file').disabled=true;$('#import-status').textContent=t('Reading and extracting documents…');
@@ -69,6 +69,23 @@ async function importDocuments(files){
  }finally{if(generation===importGeneration){$('#source-file').disabled=false;$('#source-file').value='';}}
 }
 $('#source-file').addEventListener('change',e=>importDocuments([...e.target.files]));
+const fileDropZone = $('#file-drop-zone');
+fileDropZone.addEventListener('dragover', event => {
+  if (!event.dataTransfer.types.includes('Files')) return;
+  event.preventDefault();
+  const available = !$('#source-file').disabled;
+  event.dataTransfer.dropEffect = available ? 'copy' : 'none';
+  fileDropZone.classList.toggle('dragging', available);
+});
+fileDropZone.addEventListener('dragleave', event => {
+  if (!fileDropZone.contains(event.relatedTarget)) fileDropZone.classList.remove('dragging');
+});
+fileDropZone.addEventListener('drop', event => {
+  if (!event.dataTransfer.types.includes('Files')) return;
+  event.preventDefault();
+  fileDropZone.classList.remove('dragging');
+  importDocuments([...event.dataTransfer.files]);
+});
 $('#clear-source').onclick=()=>{if(records.length&&!confirm(t('Clear all imported documents and extracted results?')))return;importGeneration++;records.splice(0);selectedRecordId=null;recordPage=0;lastImportSummary=null;importItems.splice(0);$('#source-file').disabled=false;$('#source-file').value='';$('#source-text').value='';$('#import-files').replaceChildren();$('#import-status').textContent='';$('#print-report').replaceChildren();render();};
 window.addEventListener('languagechange',()=>{if(lastImportSummary)renderImportStatus();else $('#import-status').textContent=translateText($('#import-status').textContent);importItems.forEach(renderImportItem);});
 function buildReport(){

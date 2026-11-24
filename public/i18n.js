@@ -182,6 +182,8 @@ Object.assign(translations, {
   "Import medical records": "匯入病歷",
   "Choose TXT, DOCX or text-based PDF files. Processing starts automatically.": "選擇 TXT、DOCX 或文字型 PDF，系統將自動開始處理。",
   "Source documents": "來源文件",
+  "Select one or more files": "選擇一個或多個檔案",
+  "Select multiple files in the file picker, or drag and drop them here.": "可在檔案選擇視窗中一次選取多個檔案，也可將檔案拖放到這裡。",
   "Files are read locally, never uploaded. Maximum 10 MB per file and 200 PDF pages. Scanned PDFs need OCR first.": "文件僅在本機讀取，不會上傳。每檔上限 10 MB，PDF 上限 200 頁。掃描式 PDF 須先進行 OCR。",
   "Clear session": "清除工作階段",
   "FILE-DERIVED RESULTS": "文件擷取結果",
