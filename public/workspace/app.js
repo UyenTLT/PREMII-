@@ -115,15 +115,34 @@ function fio2Summary(record){
  const readings=record.fio2Readings??[];
  const explicitCode=/\bOA\s*[:=：]/i.test(record.evidence?.OA??'');
  const showRecordedCode=explicitCode||record.mergedFrom||record.manualEdits?.OA||record.fieldStatus?.OA==='conflicting';
- if(!readings.length)return [codedSummary(record,'OA')];
- const values=readings.map(({percent,referenceDate,documentedIn})=>{
-  if(referenceDate)return `${percent}% · ${t('Settings from')} ${referenceDate}`;
-  if(documentedIn)return `${percent}% · ${t('Documented in note from')} ${documentedIn}`;
+ const values=readings.filter(reading=>!reading.referenceDate&&!reading.documentedIn).map(({percent})=>{
   const category=record.RES1==='2'||showRecordedCode?null:oxygenCategory(percent);
   return category===null?`${percent}%`:`${percent}% (OA = ${category})`;
  });
- if(showRecordedCode||readings.every(reading=>reading.referenceDate))values.push(codedSummary(record,'OA'));
- return values;
+ if(showRecordedCode||!values.length)values.push(codedSummary(record,'OA'));
+ return values.filter(Boolean);
+}
+function appendFio2Cell(row,observations){
+ const cell=node('td',undefined,'fio2-cell');
+ const direct=[...new Set(observations.flatMap(fio2Summary))];
+ const readings=observations.flatMap(record=>record.fio2Readings??[]);
+ const linked=[...new Set(readings.filter(reading=>reading.documentedIn).map(reading=>reading.percent))]
+  .sort((a,b)=>a-b).map(percent=>`${percent}%`);
+ const values=direct.length?direct:linked;
+ if(values.length){
+  const list=node('ul',undefined,'case-values fio2-values');
+  for(const value of values.slice(0,3)){
+   const text=Array.from(value);
+   list.append(node('li',text.length>55?text.slice(0,54).join('').trimEnd()+'…':value));
+  }
+  if(values.length>3)list.append(node('li',`+${values.length-3}`,'fio2-context'));
+  cell.append(list);
+  if(!direct.length)cell.append(node('small',t('From other notes'),'fio2-context'));
+ }else{
+  cell.append(node('span','—'));
+  if(readings.some(reading=>reading.referenceDate))cell.append(node('small',t('Other dates in notes'),'fio2-context'));
+ }
+ row.append(cell);
 }
 function eventEvidence(record){
  const evidence=[];
@@ -141,7 +160,7 @@ function eventEvidence(record){
  }
  return [...new Set(evidence)];
 }
-function appendSummaryCell(row,items,valuesFor,compact=false){
+function appendSummaryCell(row,items,valuesFor){
  const values=new Set();
  for(const item of items){
   for(const value of valuesFor(item).filter(Boolean)){
@@ -151,11 +170,11 @@ function appendSummaryCell(row,items,valuesFor,compact=false){
  const cell=node('td');
  if(values.size){
   const entries=[...values];
-  const preview=(compact?entries:entries.slice(0,2)).map(value=>{
+  const preview=entries.slice(0,2).map(value=>{
    const characters=Array.from(value);
    return characters.length>100?characters.slice(0,99).join('').trimEnd()+'…':value;
   });
-  const list=node('ul',undefined,compact?'case-values fio2-values':'case-values');
+  const list=node('ul',undefined,'case-values');
   for(const value of preview)list.append(node('li',value));
   cell.append(list);
  }else{
@@ -215,7 +234,7 @@ function render(){
   appendSummaryCell(row,observations,item=>[
    [codedSummary(item,'RES1'),codedSummary(item,'RES2')].filter(Boolean).join('\n')
   ]);
-  appendSummaryCell(row,observations,fio2Summary,true);
+  appendFio2Cell(row,observations);
   appendSummaryCell(row,observations,item=>[codedSummary(item,'FEED1')]);
   appendSummaryCell(row,observations,item=>[item.WEIGHT1==null?'':[
    `${item.WEIGHT1} g`,item.WEIGHT2!==item.date?item.WEIGHT2:null
@@ -282,16 +301,29 @@ function render(){
  noteSelect.value=r.recordId;
  const details=$('#extracted-fields');details.replaceChildren();
  for(const [field,label] of Object.entries(labels)){
-  const item=node('article',undefined,'extracted-field');item.append(node('h3',t(label)),node('p',field==='OA'&&r.fio2Readings?.length?[...new Set(fio2Summary(r))].join(' · '):fieldValue(r,field),r[field]===null?'missing-value':'extracted-value'));
+  const item=node('article',undefined,'extracted-field');
+  item.append(node('h3',t(label)));
+  const values=field==='OA'?fio2Summary(r):[];
+  item.append(node('p',values.length?[...new Set(values)].join(' · '):fieldValue(r,field),
+   values.length||r[field]!==null?'extracted-value':'missing-value'));
   if(r.manualEdits?.[field])item.append(node('p',t('Manually edited'),'edit-marker'));
   if(r.evidence[field]){
    if(r.manualEdits?.[field])item.append(node('p',t('Original extraction evidence'),'muted'));
    item.append(node('blockquote',r.evidence[field],'source-evidence'));
   }
   if(field==='OA'){
-   const linkedEvidence=new Set((r.fio2Readings??[]).filter(reading=>reading.documentedIn&&reading.evidence)
-    .map(reading=>`${reading.documentedIn} · ${reading.evidence}`));
-   for(const quote of linkedEvidence)item.append(node('blockquote',quote,'source-evidence'));
+   const references=(r.fio2Readings??[]).filter(reading=>reading.documentedIn||reading.referenceDate);
+   if(references.length){
+    const list=node('ul',undefined,'case-values fio2-reference-list');
+    for(const {percent,referenceDate,documentedIn} of exportFiO2({fio2Readings:references})){
+     const label=referenceDate?t('Settings from'):t('Documented in note from');
+     list.append(node('li',`${percent}% · ${label} ${referenceDate??documentedIn}`));
+    }
+    item.append(node('p',t('Source references'),'fio2-context'),list);
+    const quotes=new Set(references.filter(reading=>reading.evidence)
+     .map(reading=>reading.documentedIn?`${reading.documentedIn} · ${reading.evidence}`:reading.evidence));
+    for(const quote of quotes)if(quote!==r.evidence.OA)item.append(node('blockquote',quote,'source-evidence'));
+   }
   }
   details.append(item);
  }
