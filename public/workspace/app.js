@@ -5,7 +5,9 @@ const expandedGroups=new Set();
 const expandedInfants=new Set();
 let mergeSequence=0;
 let selectedRecordId=null;
-let detailsOpen=false;
+const observationDialog=$('#results-section');
+let observationTrigger=null;
+let observationTriggerId=null;
 let recordPage=0;
 let exportingExcel=false;
 const RECORDS_PER_PAGE=20;
@@ -41,7 +43,7 @@ function fieldValue(r,field){
 }
 function node(tag,text,className){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(className)el.className=className;return el;}
 function activeRecord(){return records.find(r=>r.recordId===selectedRecordId);}
-function notify(message){$('#toast').textContent=message;$('#toast').classList.add('visible');setTimeout(()=>$('#toast').classList.remove('visible'),5000);}
+function notify(message){if(observationDialog.open){$('#observation-message').textContent=message;return;}$('#toast').textContent=message;$('#toast').classList.add('visible');setTimeout(()=>$('#toast').classList.remove('visible'),5000);}
 function matchingRecords(){
  const query=$('#record-search').value.trim().toLowerCase();
  return query?records.filter(record=>record.infant?.toLowerCase().includes(query)):records;
@@ -166,7 +168,7 @@ function render(){
   if(!gestationalAgesByInfant.has(item.infant))gestationalAgesByInfant.set(item.infant,new Set());
   for(const age of ages)gestationalAgesByInfant.get(item.infant).add(age);
  }
- $('#record-count').textContent=records.length;$('#empty-state').hidden=!!records.length;$('#results-section').hidden=!active||!detailsOpen;
+ $('#record-count').textContent=records.length;$('#empty-state').hidden=!!records.length;
  for(const id of ['export-json','export-csv'])$('#'+id).disabled=!records.length;
  $('#output-ready').hidden=!records.length;
  for(const id of ['export-pdf','quick-export-pdf'])$('#'+id).disabled=!active;
@@ -222,13 +224,12 @@ function render(){
    const source=item.mergedFrom?t('Merged observation'):item.filename;
    const view=node('button',`${t('Note')} ${index+1}\n${source}`,'secondary');
    view.type='button';
+   view.dataset.observationId=item.recordId;
+   view.setAttribute('aria-haspopup','dialog');
    if(item===active)view.setAttribute('aria-current','true');
    view.onclick=()=>{
     expandedGroups.add(key);
-    selectedRecordId=item.recordId;
-    detailsOpen=true;
-    render();
-    $('#selected-note').focus();
+    openObservationDetails(item,view);
    };
    details.append(view);
   }
@@ -285,6 +286,27 @@ function render(){
   details.append(item);
  }
 }
+function openObservationDetails(record,trigger){
+ observationTrigger=trigger;
+ observationTriggerId=trigger.dataset.observationId;
+ selectedRecordId=record.recordId;
+ $('#observation-message').textContent='';
+ $('#original-note-panel').open=false;
+ render();
+ observationDialog.showModal();
+ observationDialog.querySelector('.observation-content').scrollTop=0;
+}
+$('#close-observation').onclick=()=>observationDialog.close();
+observationDialog.addEventListener('close',()=>{
+ if(observationDialog.open)return;
+ const replacement=observationTriggerId&&[...document.querySelectorAll('[data-observation-id]')]
+  .find(button=>button.dataset.observationId===observationTriggerId);
+ const target=observationTrigger?.isConnected?observationTrigger:replacement;
+ // Preserve focus if the operation explicitly moved it to the database login.
+ if(!document.activeElement.closest('#database-login'))(target||$('#records')).focus({preventScroll:true});
+ observationTrigger=null;
+ observationTriggerId=null;
+});
 function download(content,type,ext){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=`premii-${new Date().toISOString().slice(0,10)}.${ext}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function exportRecords(){
  return exportableRecords().map(record=>{

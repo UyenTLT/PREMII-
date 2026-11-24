@@ -61,11 +61,8 @@ async function refreshDatabase(){
     };
     records.push(record);
    }
-   selectedRecordId=recordId;
-   detailsOpen=true;
    showRecordInList(record);
-   render();
-   $('#selected-note').focus();
+   openObservationDetails(record,open);
   };
   const remove=node('button',t('Delete record'),'secondary');
   remove.type='button';
@@ -80,7 +77,7 @@ async function refreshDatabase(){
      records.splice(index,1);
      if(selectedRecordId===recordId){
       selectedRecordId=records[0]?.recordId??null;
-      detailsOpen=false;
+      observationDialog.close();
      }
      render();
     }
@@ -103,6 +100,7 @@ function databaseFields(observation){
 }
 
 function promptDatabaseLogin(){
+ if(observationDialog.open)observationDialog.close();
  $('#database').scrollIntoView();
  databaseLogin.querySelector('input').focus();
  databaseMessage.textContent=t('Sign in to use the database.');

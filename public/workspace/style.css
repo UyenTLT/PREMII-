@@ -141,3 +141,41 @@ td:has(.case-more[open]) > .case-preview { display: none; }
 
 #pdf-dialog { width: min(560px, calc(100% - 24px)); }
 #pdf-dialog select { margin-bottom: 12px; min-width: 0; }
+
+
+#results-section {
+  width: min(860px, 100%);
+  max-width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-inline-start: 1px solid #dbe4e0;
+  background: #fff;
+  color: inherit;
+  box-shadow: -12px 0 40px #17332a26;
+}
+#results-section[open] { display: flex; flex-direction: column; }
+#results-section::backdrop { background: #17332a66; }
+.observation-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px clamp(16px, 4vw, 32px);
+  border-bottom: 1px solid #dbe4e0;
+}
+.observation-heading > div { min-width: 0; overflow-wrap: anywhere; }
+.observation-heading h2 { margin: 0; font-size: 18px; }
+.observation-heading button { flex: none; }
+#source-context { margin: 6px 0 0; }
+.observation-content {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 18px clamp(16px, 4vw, 32px) 32px;
+}
+.observation-content .notice { margin-bottom: 14px; }
+#observation-message:empty { display: none; }
+#original-note-panel { margin-top: 16px; }

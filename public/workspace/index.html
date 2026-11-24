@@ -4,16 +4,16 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PREMII · File-based assessment</title>
-    <link rel="stylesheet" href="style.css?v=infant-groups-1" />
-    <script src="i18n.js?v=daily-compact-1" defer></script>
+    <link rel="stylesheet" href="style.css?v=observation-panel-1" />
+    <script src="i18n.js?v=observation-panel-1" defer></script>
     <script src="suggestions.js?v=20261117-excel" defer></script>
     <script src="extraction.js?v=20261117-excel" defer></script>
     <script src="vendor/jszip.min.js" defer></script>
     <script src="spreadsheet.js?v=full-observation-labels" defer></script>
-    <script src="app.js?v=infant-groups-1" defer></script>
+    <script src="app.js?v=observation-panel-1" defer></script>
     <script src="vendor/mammoth.browser.min.js" defer></script>
-    <script src="documents.js?v=infant-groups-1" defer></script>
-    <script src="database.js?v=daily-compact-1" defer></script>
+    <script src="documents.js?v=observation-panel-1" defer></script>
+    <script src="database.js?v=observation-panel-1" defer></script>
   </head>
   <body>
     <noscript
@@ -165,33 +165,38 @@
           Each row summarizes one assessment date per infant. Open Details to review the original notes.
         </p>
       </section>
-      <section id="results-section" hidden>
-        <div class="card">
-          <div class="results-heading">
+      <dialog id="results-section" aria-labelledby="selected-note">
+        <header class="observation-heading">
+          <div>
             <h2 id="selected-note" tabindex="-1"></h2>
-            <a href="#records">Browse all observations</a>
+            <p id="source-context" class="muted"></p>
           </div>
-          <p id="source-context" class="muted"></p>
+          <button id="close-observation" type="button" class="secondary" autofocus>Close</button>
+        </header>
+        <div class="observation-content">
           <p class="notice">
             Results are automatically extracted and have not been clinically
             verified. Review the original source before saving corrections.
           </p>
-          <button id="save-observation-db" type="button" class="secondary">Save to database</button>
-          <button id="edit-observation" type="button" class="secondary">Edit observation</button>
-          <button id="merge-observations" type="button" class="secondary" hidden>Merge same-shift observations</button>
-          <button id="undo-observation-merge" type="button" class="secondary" hidden>Undo merge</button>
+          <div class="record-actions">
+            <button id="save-observation-db" type="button" class="secondary">Save to database</button>
+            <button id="edit-observation" type="button" class="secondary">Edit observation</button>
+            <button id="merge-observations" type="button" class="secondary" hidden>Merge same-shift observations</button>
+            <button id="undo-observation-merge" type="button" class="secondary" hidden>Undo merge</button>
+          </div>
+          <p id="observation-message" role="status"></p>
+          <details id="original-note-panel">
+            <summary>View original source note</summary>
+            <textarea
+              id="source-text"
+              rows="15"
+              readonly
+              aria-label="Source text"
+            ></textarea>
+          </details>
           <div id="extracted-fields" class="extracted-grid"></div>
         </div>
-        <details class="card" id="original-note-panel">
-          <summary>View original source note</summary>
-          <textarea
-            id="source-text"
-            rows="15"
-            readonly
-            aria-label="Source text"
-          ></textarea>
-        </details>
-      </section>
+      </dialog>
       <section class="card" id="database">
         <h2>Database</h2>
         <p class="muted">Sign in with your PREMII Tracker account. Only observations you save are stored. Your original files stay in this browser.</p>

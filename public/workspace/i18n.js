@@ -3,6 +3,7 @@
 const translations = {
   "Note": "記錄",
   "Full text": "完整內容",
+  "Close": "關閉",
   "Case ID": "個案代碼",
   "Birth GA": "出生週數",
   "Assessment date": "評估日期",

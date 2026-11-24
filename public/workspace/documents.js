@@ -95,7 +95,7 @@ async function importDocuments(files){
   if(generation!==importGeneration)return;
   if(firstNewRecordId){
    selectedRecordId=firstNewRecordId;
-   detailsOpen=false;
+   observationDialog.close();
    $('#record-search').value='';
    expandedGroups.clear();expandedInfants.clear();
    showRecordInList(activeRecord(),false);
@@ -124,7 +124,7 @@ fileDropZone.addEventListener('drop', event => {
   fileDropZone.classList.remove('dragging');
   importDocuments([...event.dataTransfer.files]);
 });
-$('#clear-source').onclick=()=>{if(records.length&&!confirm(t('Clear all imported documents and extracted results?')))return;importGeneration++;records.splice(0);expandedGroups.clear();expandedInfants.clear();selectedRecordId=null;detailsOpen=false;recordPage=0;$('#record-search').value='';lastImportSummary=null;importItems.splice(0);$('#source-file').disabled=false;$('#source-file').value='';$('#source-text').value='';$('#import-files').replaceChildren();$('#import-file-details').hidden=true;$('#import-issues').replaceChildren();$('#import-issues').hidden=true;$('#import-status').textContent='';$('#print-report').replaceChildren();render();};
+$('#clear-source').onclick=()=>{if(records.length&&!confirm(t('Clear all imported documents and extracted results?')))return;importGeneration++;records.splice(0);expandedGroups.clear();expandedInfants.clear();selectedRecordId=null;observationDialog.close();recordPage=0;$('#record-search').value='';lastImportSummary=null;importItems.splice(0);$('#source-file').disabled=false;$('#source-file').value='';$('#source-text').value='';$('#import-files').replaceChildren();$('#import-file-details').hidden=true;$('#import-issues').replaceChildren();$('#import-issues').hidden=true;$('#import-status').textContent='';$('#print-report').replaceChildren();render();};
 window.addEventListener('languagechange',()=>{if(lastImportSummary)renderImportStatus();else $('#import-status').textContent=translateText($('#import-status').textContent);importItems.forEach(renderImportItem);});
 function buildReport(){
  const report=$('#print-report');report.replaceChildren();const r=activeRecord();if(!r)return report;
