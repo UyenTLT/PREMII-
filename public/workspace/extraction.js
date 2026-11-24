@@ -47,7 +47,8 @@ function extractFileRecords(text,filename,fileId='file-1'){
   r.infant=segment.infant;r.date=segment.date;r.recordId=`${fileId}-${index+1}`;r.patientKey=`${fileId}-${segment.caseIndex}`;r.noteTime=segment.noteTime;
   r.filename=filename;r.sourceLine=segment.line;r.extractionStatus='automated-unverified';r.schemaVersion='premii-file-observations-v2';r.evidence={};r.fieldStatus=Object.fromEntries(PREMII_FIELDS.map(k=>[k,'not-found']));
   const clinical=currentObservations(segment.text,segment.date);
-  const proposals=extractSuggestions(clinical);
+  r.fio2Readings=documentedFiO2(clinical);
+  const proposals=extractSuggestions(clinical,r.fio2Readings);
   for(const p of proposals){if(p.field==='weighed')continue;r[p.field]=p.value;r.evidence[p.field]=p.evidence;r.fieldStatus[p.field]='extracted';}
   const set=(field,v,evidence)=>{if(v!==null&&v!==undefined){r[field]=v;r.fieldStatus[field]='extracted';r.evidence[field]=evidence;}};
   if(r.infant)set('infant',r.infant,'Source study/infant ID heading');if(r.date)set('date',r.date,'Source dated note heading');

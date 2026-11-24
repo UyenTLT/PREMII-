@@ -79,6 +79,7 @@ footer { flex-wrap: wrap; gap: 8px; color: #5b7167; }
 .case-values { margin: 0; padding: 0; list-style: none; }
 .case-values li { line-height: 1.45; white-space: pre-line; }
 .case-values li + li { margin-top: 8px; }
+.fio2-values li + li { margin-top: 3px; }
 #records-table .view-observations { padding: 6px 8px; font-size: 11px; }
 .assessment-date { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .birth-ga-conflict { color: #80521e; font-weight: 600; }

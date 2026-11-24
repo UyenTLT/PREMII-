@@ -1,6 +1,38 @@
 'use strict';
 // Conservative text rules, not a clinical inference model. Operates on a single separated source note; unknown values remain absent.
-function extractSuggestions(text){
+function oxygenCategory(percent){
+ if(percent===21)return 1;
+ if(percent>=22&&percent<=30)return 2;
+ if(percent>=31&&percent<=40)return 3;
+ if(percent>=41&&percent<=50)return 4;
+ if(percent>=51&&percent<=60)return 5;
+ if(percent>=61&&percent<=100)return 6;
+ return null;
+}
+
+function documentedFiO2(text){
+ const readings=[];
+ const value=String.raw`(\d+(?:\.\d+)?|\.\d+)\s*(%)?(?![\d.]|\s*[-–~])`;
+ const label=String.raw`(?:\bFi[ \t]*O[ \t]*2\b|\b(?:inspired )?oxygen concentration\b|吸入氧氣濃度|吸氧濃度|供氧濃度|氧氣濃度)`;
+ const setting=new RegExp(label+String.raw`\s*(\(%\))?\s*[:=]?\s*(?:(?:was\s+)?(?:weaned|titrated|reduced|increased|decreased|adjusted|changed)\s+(?:from|to)\s+|at\s+|of\s+)?`+value+String.raw`(?:\s*(?:→|->|to\b)\s*`+value+')?','gi');
+ const context=/\b(?:no|not|without|off|stopped|discontinued|history|previous(?:ly)?|plan(?:ned)?|consider|target|goal|if)\b|未使用|未給予|無需|停用|曾經|病史|預計|目標|考慮/i;
+ for(const line of text.split('\n')){
+  for(const clause of line.normalize('NFKC').split(/[;。]|,(?=\s*[^\d\s])/)){
+   if(context.test(clause))continue;
+   for(const match of clause.matchAll(setting)){
+    for(const [number,unit] of [[match[2],match[3]],[match[4],match[5]]]){
+     if(number===undefined)continue;
+     const numeric=Number(number);
+     const percent=unit||match[1]||numeric>1?numeric:Math.round(numeric*10000)/100;
+     if(percent>=21&&percent<=100)readings.push({percent,evidence:line.trim()});
+    }
+   }
+  }
+ }
+ return readings;
+}
+
+function extractSuggestions(text,fio2Readings=documentedFiO2(text)){
  const found=new Map();
  const add=(field,value,evidence)=>{if(!found.has(field))found.set(field,{field,value:String(value),evidence:evidence.trim().slice(0,400)});};
  const lines=text.split(/\n/).map(s=>s.trim()).filter(Boolean);
@@ -25,10 +57,11 @@ function extractSuggestions(text){
   }
  }
  if(resp.length){resp.sort((a,b)=>b[0]-a[0]);add('RES1',resp[0][0],resp[0][1]);}
- const oxygen=[];
- for(const line of positive){const m=line.match(/(?:FiO[₂2]|oxygen concentration|供氧濃度|氧氣濃度)\s*[:=：]?\s*(\d+(?:\.\d+)?)\s*(%)?/i);if(m){let n=+m[1];if(!m[2]&&n>0&&n<=1)n*=100;if(n>=21&&n<=100)oxygen.push([n,line]);}}
- if(oxygen.length&&found.get('RES1')?.value!=='2'){
-  oxygen.sort((a,b)=>b[0]-a[0]);const [n,line]=oxygen[0];add('OA',n>=61?6:n>=51?5:n>=41?4:n>=31?3:n>=22?2:1,line);
+ const oxygen=fio2Readings.reduce((highest,reading)=>
+  !highest||reading.percent>highest.percent?reading:highest,null);
+ if(oxygen&&found.get('RES1')?.value!=='2'){
+  const category=oxygenCategory(oxygen.percent);
+  if(category!==null)add('OA',category,oxygen.evidence);
  }
  const weights=[];
  for(const line of positive){
@@ -41,4 +74,4 @@ function extractSuggestions(text){
  if(weights.length){weights.sort((a,b)=>a[0]-b[0]);add('weighed','yes',weights[0][1]);add('WEIGHT1',weights[0][0],weights[0][1]);}
  return [...found.values()];
 }
-if(typeof module!=='undefined')module.exports={extractSuggestions};
+if(typeof module!=='undefined')module.exports={extractSuggestions,documentedFiO2,oxygenCategory};
