@@ -4,15 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PREMII · File-based assessment</title>
-    <link rel="stylesheet" href="style.css?v=pdf-selection-cleanup" />
-    <script src="i18n.js?v=full-observation-labels" defer></script>
+    <link rel="stylesheet" href="style.css?v=pdf-infant-flow-1" />
+    <script src="i18n.js?v=pdf-infant-flow-1" defer></script>
     <script src="suggestions.js?v=20261117-excel" defer></script>
     <script src="extraction.js?v=20261117-excel" defer></script>
     <script src="vendor/jszip.min.js" defer></script>
     <script src="spreadsheet.js?v=full-observation-labels" defer></script>
     <script src="app.js?v=full-observation-labels" defer></script>
     <script src="vendor/mammoth.browser.min.js" defer></script>
-    <script src="documents.js?v=full-observation-labels" defer></script>
+    <script src="documents.js?v=pdf-infant-flow-1" defer></script>
   </head>
   <body>
     <noscript
@@ -84,7 +84,7 @@
           <div class="output-actions">
             <button id="show-results" type="button">View results</button
             >
-            <button id="quick-export-pdf" type="button" class="secondary" disabled>PDF · Selected note</button>
+            <button id="quick-export-pdf" type="button" class="secondary" disabled>Export PDF</button>
             <button id="quick-export-excel" type="button" class="secondary">
               Excel (.xlsx) · All observations</button
             ><button id="quick-export-csv" type="button" class="secondary">
@@ -109,7 +109,7 @@
         <div class="records-heading">
           <h2>Extracted observations</h2>
           <div class="record-actions">
-            <button id="export-pdf" type="button" class="secondary" disabled>PDF · Selected note</button>
+            <button id="export-pdf" type="button" class="secondary" disabled>Export PDF</button>
             <button id="export-json" class="secondary" disabled>
               JSON · All observations
             </button>
@@ -216,6 +216,21 @@
         <div class="editor-actions">
           <button id="cancel-merge" type="button" class="secondary">Cancel</button>
           <button type="submit">Save merged observation</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="pdf-dialog" aria-labelledby="pdf-title">
+      <form id="pdf-form">
+        <h2 id="pdf-title">Export PDF</h2>
+        <label for="pdf-infant">Select Infant ID</label>
+        <select id="pdf-infant" required></select>
+        <div id="pdf-observation-field">
+          <label for="pdf-observation">Select observation</label>
+          <select id="pdf-observation" required></select>
+        </div>
+        <div class="editor-actions">
+          <button id="cancel-pdf" type="button" class="secondary">Cancel</button>
+          <button id="print-selected-pdf" type="submit">Print or save as PDF</button>
         </div>
       </form>
     </dialog>

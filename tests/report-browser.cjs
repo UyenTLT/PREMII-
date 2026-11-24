@@ -10,7 +10,7 @@ const {execFileSync}=require('node:child_process');
  for(const [name,text,expected] of cases){
   await page.setInputFiles('#source-file',{name:name==='dense'?'來源病歷'.repeat(40)+'.txt':name+'.txt',mimeType:'text/plain',buffer:Buffer.from(text)});await page.waitForFunction(()=>!document.querySelector('#source-file').disabled);
   for(const lang of ['en','zh-Hant']){
-   await page.selectOption('#language',lang);await page.click('#quick-export-pdf');const domCount=await page.locator('.report-page').count();assert.equal(domCount,expected);
+   await page.selectOption('#language',lang);await page.click('#quick-export-pdf');await page.click('#print-selected-pdf');const domCount=await page.locator('.report-page').count();assert.equal(domCount,expected);
    const file=`/tmp/premii-report-${name}-${lang}.pdf`;await page.pdf({path:file,preferCSSPageSize:true});const info=execFileSync('pdfinfo',[file],{encoding:'utf8'});const pages=Number(info.match(/Pages:\s+(\d+)/)[1]);assert.equal(pages,expected,`${name}/${lang} overflowed`);
    const content=execFileSync('pdftotext',[file,'-'],{encoding:'utf8'});assert.match(content,/PREMII/);assert.ok(content.length>400,`${name}/${lang} has no readable content`);assert.match(content,lang==='en'?/Respiratory support & oxygen/:/呼吸輔助與供氧/);assert.match(content,lang==='en'?/Thermoregulation/:/體溫調節/);if(name==='unknown')assert.doesNotMatch(content,/2026-11-17/);
    if(name==='dense'){assert.match(content,/2100/);assert.match(content,/2200/);assert.match(content,/20:00/);assert.match(content,/23:59/);assert.match(content,/21:00/);assert.match(content,/19:00/);}

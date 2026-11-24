@@ -1,6 +1,9 @@
 'use strict';
 // UI language only is persisted. Assessment data is never stored here.
 const translations = {
+  "Select Infant ID": "選擇嬰兒代碼",
+  "Select observation": "選擇觀察記錄",
+  "Print or save as PDF": "列印或儲存為 PDF",
   "Observation fields": "觀察項目",
   "Only recorded responses are shown. Source note times are not shift boundaries.": "僅顯示已記錄的回應。來源記錄時間並非班別起訖時間。",
   "Workspace with database": "含資料庫的工作區",
