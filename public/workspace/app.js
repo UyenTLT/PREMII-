@@ -2,6 +2,7 @@
 const $=s=>document.querySelector(s);
 const records=[];
 const expandedGroups=new Set();
+const expandedInfants=new Set();
 let mergeSequence=0;
 let selectedRecordId=null;
 let detailsOpen=false;
@@ -75,9 +76,13 @@ function showRecordInList(record,expandGroup=true){
   $('#record-search').value='';
   rows=records;
  }
- const groups=recordGroups(rows);
+ const groupByInfant=$('#group-by-infant').checked;
+ const groups=recordGroups(rows,!groupByInfant);
  const index=groups.findIndex(([,items])=>items.includes(record));
- if(expandGroup&&index>=0)expandedGroups.add(groups[index][0]);
+ if(expandGroup&&index>=0){
+  if(groupByInfant)expandedInfants.add(groups[index][0]);
+  expandedGroups.add(recordGroups([record])[0][0]);
+ }
  recordPage=Math.floor(Math.max(0,index)/RECORDS_PER_PAGE);
 }
 function birthGestationalAges(record){
@@ -149,7 +154,8 @@ function appendSummaryCell(row,items,valuesFor){
 }
 function render(){
  const visibleRecords=matchingRecords();
- const groups=recordGroups(visibleRecords);
+ const groupByInfant=$('#group-by-infant').checked;
+ const groups=recordGroups(visibleRecords,!groupByInfant);
  const pageCount=groups.length;
  const active=activeRecord();
  const gestationalAgesByInfant=new Map();
@@ -182,7 +188,7 @@ function render(){
  const body=$('#records-table tbody');
  body.replaceChildren();
  const offset=recordPage*RECORDS_PER_PAGE;
- for(const [key,items] of groups.slice(offset,offset+RECORDS_PER_PAGE)){
+ function renderDateRow(key,items){
   const row=node('tr',undefined,items.includes(active)?'selected-record':undefined);
   const id=node('th',items[0].infant??t('Infant ID not documented'));
   id.scope='row';
@@ -228,7 +234,32 @@ function render(){
   }
   action.append(details);
   row.append(action);
-  body.append(row);
+  return row;
+ }
+ for(const [key,items] of groups.slice(offset,offset+RECORDS_PER_PAGE)){
+  if(!groupByInfant){
+   body.append(renderDateRow(key,items));
+   continue;
+  }
+  const days=recordGroups(items);
+  const dayRows=days.map(([dayKey,notes])=>renderDateRow(dayKey,notes));
+  const groupRow=node('tr',undefined,'infant-group');
+  const groupCell=node('td');
+  groupCell.colSpan=9;
+  const infant=items[0].infant??t('Infant ID not documented');
+  const toggle=node('button',`${infant} · ${items.length} ${t('observations')}`,'secondary');
+  toggle.type='button';
+  function setExpanded(open){
+   toggle.setAttribute('aria-expanded',String(open));
+   for(const day of dayRows)day.hidden=!open;
+   if(open)expandedInfants.add(key);
+   else expandedInfants.delete(key);
+  }
+  setExpanded(expandedInfants.has(key));
+  toggle.onclick=()=>setExpanded(toggle.getAttribute('aria-expanded')!=='true');
+  groupCell.append(toggle);
+  groupRow.append(groupCell);
+  body.append(groupRow,...dayRows);
  }
  $('#merge-observations').hidden=sameShiftSources(active).length<2;
  $('#undo-observation-merge').hidden=!active?.mergedFrom;
@@ -285,6 +316,10 @@ window.addEventListener('languagechange',()=>{render();localizeDOM();$('#toast')
 render();localizeDOM();
 
 $('#show-results').onclick=()=>$('#records').focus();
+$('#group-by-infant').addEventListener('change',()=>{
+ recordPage=0;
+ render();
+});
 $('#record-search').addEventListener('input',()=>{
  recordPage=0;
  render();
