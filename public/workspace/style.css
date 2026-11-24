@@ -56,15 +56,21 @@ footer { flex-wrap: wrap; gap: 8px; color: #5b7167; }
 #record-search-panel label { font-size: 13px; font-weight: 650; }
 #record-search-count { margin: 4px 0 0; }
 #record-search-count:empty { display: none; }
-#records-table { min-width: 1050px; font-size: 12px; }
+#records-table { min-width: 1000px; table-layout: fixed; font-size: 12px; }
 #records-table th, #records-table td { vertical-align: top; overflow-wrap: anywhere; }
 #records-table thead th { color: #416453; background: #f4f9f5; font-weight: 650; }
 #records-table th[scope="row"] { min-width: 84px; color: inherit; font-weight: 700; }
-#records-table td:nth-child(8) { min-width: 220px; }
+#records-table th:nth-child(1), #records-table th:nth-child(2) { width: 7%; }
+#records-table th:nth-child(4), #records-table th:nth-child(6) { width: 15%; }
+#records-table th:nth-child(8) { width: 22%; }
 .case-values { margin: 0; padding: 0; list-style: none; }
+.case-values li { line-height: 1.45; white-space: pre-line; }
+.case-more { margin-top: 6px; }
+.case-more summary { margin-bottom: 6px; }
+td:has(.case-more[open]) > .case-preview { display: none; }
 .case-values li + li { margin-top: 8px; }
-.case-sources summary { cursor: pointer; white-space: nowrap; }
-.case-sources button { display: block; margin-top: 6px; text-align: left; }
+.case-sources summary { cursor: pointer; }
+.case-sources button { display: block; width: 100%; margin-top: 6px; text-align: left; white-space: pre-line; overflow-wrap: anywhere; }
 #import-file-details { margin-top: 12px; }
 #import-file-details summary { cursor: pointer; }
 #import-issues { padding-left: 24px; overflow-wrap: anywhere; }

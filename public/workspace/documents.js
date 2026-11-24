@@ -202,11 +202,11 @@ function pdfChoice(label,value){
 
 function renderPdfObservations(preferredId){
  const notes=pdfGroups[Number(pdfInfant.value)]?.[1]??[];
- pdfObservation.replaceChildren(...notes.map(record=>{
-  const time=[record.date,record.noteTime].filter(Boolean).join(' ')||t('Date not documented');
+ pdfObservation.replaceChildren(...notes.map((record,index)=>{
+  const date=record.date||t('Date not documented');
   const shift=record.shift?t('Shift')+' '+record.shift:t('Shift not documented');
   const source=record.mergedFrom?t('Merged observation'):[record.filename,record.sourceLine?t('Source line')+' '+record.sourceLine:''].filter(Boolean).join(' · ');
-  return pdfChoice([time,shift,source].join(' · '),record.recordId);
+  return pdfChoice([date,t('Note')+' '+(index+1),shift,source].join(' · '),record.recordId);
  }));
  if(notes.some(record=>record.recordId===preferredId))pdfObservation.value=preferredId;
  $('#pdf-observation-field').hidden=notes.length<2;
@@ -214,7 +214,7 @@ function renderPdfObservations(preferredId){
 
 $('#export-pdf').onclick=()=>{
  if(!records.length)return;
- pdfGroups=recordGroups(records);
+ pdfGroups=recordGroups(records,false);
  pdfInfant.replaceChildren(...pdfGroups.map(([,notes],index)=>
   pdfChoice(notes[0].infant??t('Infant ID not documented'),String(index))
  ));

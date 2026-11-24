@@ -45,7 +45,7 @@ async function refreshDatabase(){
  databaseList.replaceChildren();
  for(const {id,observation} of saved){
   const row=node('li');
-  const fields=[observation.infant,[observation.date,observation.noteTime].filter(Boolean).join(' ')];
+  const fields=[observation.infant,observation.date||t('Date not documented')];
   if(observation.shift)fields.push(t('Shift')+' '+observation.shift);
   row.append(node('span',fields.filter(Boolean).join(' · ')));
   const actions=node('div',undefined,'record-actions');

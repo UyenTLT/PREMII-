@@ -58,11 +58,11 @@ function sameShiftSources(record){
  if(scope.some(item=>item.mergedFrom))return [];
  return scope.filter(item=>!mergedParent(item));
 }
-function recordGroups(rows){
+function recordGroups(rows,byDate=true){
  const grouped=new Map();
  for(const row of rows){
   const key=row.infant
-   ?JSON.stringify([row.infant,row.date||null])
+   ?JSON.stringify([row.infant,byDate?row.date||null:null])
    :'record:'+row.recordId;
   if(!grouped.has(key))grouped.set(key,[]);
   grouped.get(key).push(row);
@@ -126,9 +126,22 @@ function appendSummaryCell(row,items,valuesFor){
  }
  const cell=node('td');
  if(values.size){
-  const list=node('ul',undefined,'case-values');
-  for(const value of values)list.append(node('li',value));
+  const entries=[...values];
+  const preview=entries.slice(0,2).map(value=>{
+   const characters=Array.from(value);
+   return characters.length>100?characters.slice(0,99).join('').trimEnd()+'…':value;
+  });
+  const list=node('ul',undefined,'case-values case-preview');
+  for(const value of preview)list.append(node('li',value));
   cell.append(list);
+  if(entries.length>preview.length||preview.some((value,index)=>value!==entries[index])){
+   const more=node('details',undefined,'case-more');
+   more.append(node('summary',t('Full text')));
+   const full=node('ul',undefined,'case-values');
+   for(const value of entries)full.append(node('li',value));
+   more.append(full);
+   cell.append(more);
+  }
  }else{
   cell.textContent='—';
  }
@@ -182,7 +195,7 @@ function render(){
   appendSummaryCell(row,[birthAges],ages=>ages);
   row.append(node('td',date||t('Date not documented')));
   appendSummaryCell(row,observations,item=>[
-   [codedSummary(item,'RES1'),codedSummary(item,'RES2')].filter(Boolean).join(' · ')
+   [codedSummary(item,'RES1'),codedSummary(item,'RES2')].filter(Boolean).join('\n')
   ]);
   appendSummaryCell(row,observations,item=>[codedSummary(item,'OA')]);
   appendSummaryCell(row,observations,item=>[codedSummary(item,'FEED1')]);
@@ -199,10 +212,9 @@ function render(){
    else expandedGroups.delete(key);
   };
   details.append(node('summary',`${items.length} ${t('observations')}`));
-  for(const item of items){
-   const timestamp=[item.date,item.noteTime].filter(Boolean).join(' ')||t('Date not documented');
+  for(const [index,item] of items.entries()){
    const source=item.mergedFrom?t('Merged observation'):item.filename;
-   const view=node('button',`${timestamp} · ${source}`,'secondary');
+   const view=node('button',`${t('Note')} ${index+1}\n${source}`,'secondary');
    view.type='button';
    if(item===active)view.setAttribute('aria-current','true');
    view.onclick=()=>{
@@ -221,12 +233,12 @@ function render(){
  $('#merge-observations').hidden=sameShiftSources(active).length<2;
  $('#undo-observation-merge').hidden=!active?.mergedFrom;
  $('#edit-observation').disabled=!!(active&&mergedParent(active));
- const pdfSelection=active?`${t('Selected for PDF')} · ${active.infant??t('Infant ID not documented')} · ${[active.date,active.noteTime].filter(Boolean).join(' ')||t('Date not documented')} · ${active.mergedFrom?t('Merged observation'):active.filename}`:'';
+ const pdfSelection=active?`${t('Selected for PDF')} · ${active.infant??t('Infant ID not documented')} · ${active.date||t('Date not documented')} · ${active.mergedFrom?t('Merged observation'):active.filename}`:'';
  $('#pdf-selection').textContent=pdfSelection;
  $('#records-pdf-selection').textContent=pdfSelection;
  $('#records-pdf-selection').hidden=!active;
  const r=active;if(!r){$('#selected-note').textContent='';$('#source-context').textContent='';$('#source-text').value='';$('#extracted-fields').replaceChildren();return;}
- $('#selected-note').textContent=`${r.infant??t('Infant ID not documented')} · ${r.date??t('Date not documented')} ${r.noteTime??''}`;
+ $('#selected-note').textContent=`${r.infant??t('Infant ID not documented')} · ${r.date??t('Date not documented')}`;
  if(r.mergedFrom)$('#source-context').textContent=t('Merged observation')+' · '+r.mergedFrom.map(source=>source.filename+' :'+source.sourceLine).join(' · ');
  else $('#source-context').textContent=`${r.manualEdits?t('Manually edited')+' · ':''}${r.filename} · ${r.sourceLine===undefined?'':t('Source line')+' '+r.sourceLine+' · '}${r.shift?`${t('Shift')} ${r.shift}`:t('Shift not documented')}`;
  $('#original-note-panel').hidden=!r.sourceText;
@@ -443,7 +455,7 @@ const mergeDialog=$('#merge-dialog');
 let mergeDraft=null;
 
 function mergeSourceLabel(record){
- return [record.filename,record.noteTime,t('Source line')+' '+record.sourceLine].filter(Boolean).join(' · ');
+ return [record.filename,record.sourceLine!=null?t('Source line')+' '+record.sourceLine:null].filter(Boolean).join(' · ');
 }
 
 $('#merge-observations').onclick=()=>{
