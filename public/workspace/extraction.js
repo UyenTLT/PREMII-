@@ -12,11 +12,11 @@ function segmentFile(text){
  for(let ci=0;ci<cases.length;ci++){
   const c=cases[ci];const infant=(c[1]??c[2])?.trim()||null;
   const begin=c.index+c[0].length;const end=cases[ci+1]?.index??text.length;const body=text.slice(begin,end);
-  const dates=[...body.matchAll(/^[ \t]*(?:(\d{4}[/-]\d{2}[/-]\d{2})[ \t]+([0-2]\d:[0-5]\d)|(?:Date|日期|記錄日期)\s*[:：]\s*(\d{4}[/-]\d{2}[/-]\d{2}))[ \t]*\r?$/gim)];
+  const dates=[...body.matchAll(/^[ \t]*(?:(\d{4}[/-]\d{2}[/-]\d{2})[ \t]+(\d{2}:\d{2})|(?:Date|日期|記錄日期)\s*[:：]\s*(\d{4}[/-]\d{2}[/-]\d{2}))[ \t]*\r?$/gim)];
   const parts=[];
   if(dates.length&&body.slice(0,dates[0].index).trim())parts.push({from:0,to:dates[0].index,date:null,time:null});
   if(!dates.length)parts.push({from:0,to:body.length,date:null,time:null});
-  for(let i=0;i<dates.length;i++){const d=dates[i];parts.push({from:d.index,to:dates[i+1]?.index??body.length,date:validDate(d[1]??d[3]),time:d[2]&&+d[2].slice(0,2)<24?d[2]:null});}
+  for(let i=0;i<dates.length;i++){const d=dates[i];parts.push({from:d.index,to:dates[i+1]?.index??body.length,date:validDate(d[1]??d[3]),time:d[2]&&/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(d[2])?d[2]:null});}
   for(const part of parts){const content=body.slice(part.from,part.to).trim();if(content)segments.push({infant,caseIndex:ci,date:part.date,noteTime:part.time,text:content,line:text.slice(0,begin+part.from).split('\n').length});}
  }
  return segments;
@@ -48,10 +48,11 @@ function ventilatorFiO2(text,noteDate){
  const date=String.raw`(?:\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}/\d{1,2})`;
  const range=String.raw`\(?(`+date+String.raw`)(?:\s*[-–~]\s*(`+date+String.raw`|\d{1,2}))?\)?`;
  const tuple=String.raw`\[\s*(\d+(?:\.\d+)?)\s*%(?:[ ,\t]+\d+(?:\.\d+)?(?:\s*/\s*\d+(?:\.\d+)?)?)*(?:\s*cm\s*H2O)?\s*\]`;
+ const unbracketed=String.raw`(\d+(?:\.\d+)?)\s*%[ ,\t]+\d+(?:\.\d+)?[ ,\t]+\d+(?:\.\d+)?(?:\s*/\s*\d+(?:\.\d+)?)?`;
  const entries=new RegExp(String.raw`(?:^|[ \t,;→>])(?:`+
   String.raw`(`+mode+String.raw`)\s*(?:`+range+String.raw`\s*)?|`+
-  range+String.raw`\s*(?:intubated\s+)?(`+mode+String.raw`)?\s*)`+tuple,'gi');
- const header=/^\s*(?:[#@•-]\s*)?(?:Venti(?:lation|lator)?(?: settings)?|Respiratory support|呼吸器(?:設定)?)\s*:\s*/i;
+  range+String.raw`\s*(?:intubated\s+)?(`+mode+String.raw`)?\s*)(?:`+tuple+'|'+unbracketed+')','gi');
+ const header=/^\s*(?:[#@•-]\s*)?(?:Vent(?:i(?:lation|lator)?)?(?: settings)?|Respiratory support|呼吸器(?:設定)?)(?:\s*:\s*|\s+)/i;
  const prefix=/^\s*(?:[#@•-]\s*)?/;
  const excluded=/\b(?:planned|consider|target|goal|if needed)\b|預計|目標|考慮/i;
  const year=noteDate?.slice(0,4)??'2000';
@@ -67,11 +68,11 @@ function ventilatorFiO2(text,noteDate){
   const settings=normalized.replace(header,'').replace(prefix,'');
   let hasMode=false;
   for(const match of settings.matchAll(entries)){
-   const [,firstMode,firstStart,firstEnd,secondStart,secondEnd,secondMode,rawPercent]=match;
+   const [,firstMode,firstStart,firstEnd,secondStart,secondEnd,secondMode,bracketedPercent,unbracketedPercent]=match;
    if(!hasMode&&match.index!==0)break;
    if(!hasMode&&!firstMode&&!secondMode)break;
    hasMode=true;
-   const percent=Number(rawPercent);
+   const percent=Number(bracketedPercent??unbracketedPercent);
    if(percent<21||percent>100)continue;
    const evidence=line.trim();
    const startText=firstStart??secondStart;

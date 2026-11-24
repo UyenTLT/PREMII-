@@ -18,7 +18,9 @@ test("Workspace extracts FiO₂ from varied ventilator settings across infants a
     "Respiratory support: NIV [25% 25 15 5]",
     "Infant ID: SYN-02",
     "2023/06/15   09:00",
-    "Ventilation: 6/15 intubated IMV[40%, 50, 15/6] → NIMV[21% 25 15 5]",
+    "＠ Vent IMV 40% 40 18/5＝＞ 6/15 NIMV 21% 30 16/5",
+    "2023/06/15   15:60",
+    "Venti: CPAP[21%, 5]",
     "2023/06/16   09:00",
     "SpO2 92%; Plan: NIMV[30% 20 10 5]",
   ].join("\n");
@@ -36,6 +38,7 @@ test("Workspace extracts FiO₂ from varied ventilator settings across infants a
     { infant: "SYN-01", date: "2024-01-24", oa: "1", fio2: [[21, "1/22"], [21, "1/23"], [21, null]] },
     { infant: "SYN-01", date: "2024-01-25", oa: "2", fio2: [[25, null]] },
     { infant: "SYN-02", date: "2023-06-15", oa: "3", fio2: [[40, null], [21, null]] },
+    { infant: "SYN-02", date: "2023-06-15", oa: "1", fio2: [[21, null]] },
     { infant: "SYN-02", date: "2023-06-16", oa: null, fio2: [] },
   ]);
 });
