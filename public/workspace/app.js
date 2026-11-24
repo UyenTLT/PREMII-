@@ -240,7 +240,7 @@ function render(){
   appendSummaryCell(row,observations,item=>[item.WEIGHT1==null?'':[
    `${item.WEIGHT1} g`,item.WEIGHT2!==item.date?item.WEIGHT2:null
   ].filter(Boolean).join(' · ')]);
-  appendSummaryCell(row,observations,eventEvidence);
+  appendSummaryCell(row,observations,eventEvidence,{preview:false});
   const action=node('td');
   const view=node('button',t('View notes')+' ('+items.length+')','secondary view-observations');
   view.type='button';
