@@ -1,6 +1,23 @@
 'use strict';
 // UI language only is persisted. Assessment data is never stored here.
 const translations = {
+  "observations in batch exports": "筆觀察記錄將批次匯出",
+  "Group by Infant ID": "依嬰兒代碼分組",
+  "Merge same-shift observations": "合併同班別觀察記錄",
+  "Undo merge": "取消合併",
+  "Original notes stay available. The merged observation replaces them in Excel, CSV and JSON exports.": "原始記錄仍可檢視；匯出 Excel、CSV 和 JSON 時，以合併記錄取代原始記錄。",
+  "Save merged observation": "儲存合併記錄",
+  "Merged observation": "合併觀察記錄",
+  "Included in merged observation": "已納入合併記錄",
+  "Choose a source or leave unresolved": "選擇來源或保留未解決狀態",
+  "Leave unresolved": "保留未解決",
+  "Resolve conflicting values": "處理互相矛盾的數值",
+  "The source list changed. Close this dialog and start the merge again.": "來源清單已變更。請關閉並重新開始合併。",
+  "Review the source observations or choose another value before merging.": "合併前請檢查原始觀察記錄或選擇其他值。",
+  "Merged observation saved.": "已儲存合併觀察記錄。",
+  "Undo this merge? Changes to the merged observation will be discarded.": "要取消合併嗎？合併記錄的修改將被捨棄。",
+  "Merge undone.": "已取消合併。",
+  "Merged observations · Review original sources": "合併觀察記錄 · 請核對原始來源",
   "Upload medical records. Extract documented observations. Export the report.": "上傳病歷、擷取記錄中的觀察資料並匯出報告。",
   "Results are automatically extracted and have not been clinically verified. Review the original source before saving corrections.": "結果由系統自動擷取，尚未經臨床驗證。儲存修正前請核對原始資料。",
   "Edit observation": "編輯觀察記錄",

@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 (async()=>{const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});try{
  const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(process.env.PREMII_TEST_URL||'http://127.0.0.1:3000');
- assert.equal(await page.locator('main form,main input:not([type=file]):not(#record-search)').count(),0);assert.equal(await page.locator('textarea:not([readonly])').count(),0);
+ assert.equal(await page.locator('main form,main input:not([type=file]):not(#record-search):not(#group-by-infant)').count(),0);assert.equal(await page.locator('textarea:not([readonly])').count(),0);
  const text='【研究ID：TEST-001】\nDate: 2026-11-03\nOn nCPAP\nFiO2: 35%\nWeight: 1230 g\nABD1_1: 0\n【研究ID：TEST-002】\nNo usable observations.';
  await page.setInputFiles('#source-file',{name:'synthetic.txt',mimeType:'text/plain',buffer:Buffer.from(text)});await page.waitForFunction(()=>document.querySelectorAll('#records-table tbody tr').length===2);
  assert.equal(await page.locator('#results-section').isVisible(),false);await page.locator('#records-table tbody tr').first().getByRole('button').click();
@@ -47,5 +47,40 @@ sys.stdout.buffer.write(b.getvalue())`]);
  await page.setInputFiles('#source-file',{name:'synthetic-copy.txt',mimeType:'text/plain',buffer:Buffer.from(text)});
  await page.waitForFunction(()=>!document.querySelector('#source-file').disabled);
  assert.equal(await page.locator('#record-count').innerText(),'4');
+ const mergeFiles=[
+  ['shift-a.txt','2026-11-20 08:00','Shift: 1\nWeight: 1200 g\nOn nCPAP'],
+  ['shift-b.txt','2026-11-20 09:00','Shift: 1\nWeight: 1250 g\nFiO2: 35%'],
+  ['shift-c.txt','2026-11-20 16:00','Shift: 2\nWeight: 1300 g']
+ ].map(([name,stamp,note])=>({name,mimeType:'text/plain',buffer:Buffer.from(`Study ID: MERGE-001\n${stamp}\n${note}`)}));
+ await page.setInputFiles('#source-file',mergeFiles);
+ await page.waitForFunction(()=>!document.querySelector('#source-file').disabled);
+ await page.locator('#record-search').fill('MERGE-001');
+ await page.locator('#group-by-infant').check();
+ assert.equal(await page.locator('#records-table tbody tr').count(),1);
+ await page.getByRole('button',{name:/MERGE-001.*3 observations/}).click();
+ assert.equal(await page.locator('#records-table tbody tr').count(),4);
+ await page.locator('#records-table tbody tr').filter({hasText:'shift-c.txt'}).getByRole('button').click();
+ assert.equal(await page.locator('#merge-observations').isVisible(),false);
+ await page.locator('#records-table tbody tr').filter({hasText:'shift-a.txt'}).getByRole('button').click();
+ await page.click('#merge-observations');
+ assert.match(await page.locator('#merge-conflicts').innerText(),/1200 g/);
+ assert.match(await page.locator('#merge-conflicts').innerText(),/1250 g/);
+ await page.locator('#merge-form select[name=WEIGHT1]').selectOption('1');
+ await page.locator('#merge-form button[type=submit]').click();
+ assert.equal(await page.locator('#merge-dialog').isVisible(),false);
+ const merged=await exportJson('/tmp/premii-merged.json');
+ const group=merged.records.filter(record=>record.infant==='MERGE-001');
+ assert.equal(group.length,2);
+ const combined=group.find(record=>record.mergedFrom);
+ assert.equal(combined.WEIGHT1,'1250');
+ assert.equal(combined.RES1,'4');
+ assert.equal(combined.OA,'3');
+ assert.equal(combined.mergedFrom.length,2);
+ assert.deepEqual(combined.fieldSources.WEIGHT1,[combined.mergedFrom[1].recordId]);
+ await page.click('#export-pdf');
+ assert.match(await page.locator('#print-report').textContent(),/Merged observations/);
+ page.once('dialog',dialog=>dialog.accept());
+ await page.click('#undo-observation-merge');
+ assert.equal((await exportJson('/tmp/premii-undo-merge.json')).records.filter(record=>record.infant==='MERGE-001').length,3);
  assert.deepEqual(errors,[]);console.log('PASS: upload→automatic records→PDF/JSON, no data-entry inputs, explicit zeros vs unknowns, no invented dates/shifts, EN↔ZH, mobile, no JS errors');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1)});

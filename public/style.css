@@ -68,7 +68,7 @@ footer { flex-wrap: wrap; gap: 8px; color: #5b7167; }
 #import-issues .import-error { color: #8c3828; }
 #pdf-selection, #records-pdf-selection { overflow-wrap: anywhere; }
 
-#observation-editor {
+#observation-editor, #merge-dialog {
   width: min(760px, calc(100% - 24px));
   max-height: calc(100% - 24px);
   border: 1px solid #dbe4e0;
@@ -76,7 +76,7 @@ footer { flex-wrap: wrap; gap: 8px; color: #5b7167; }
   color: inherit;
   padding: 20px;
 }
-#observation-editor::backdrop { background: #17332a80; }
+#observation-editor::backdrop, #merge-dialog::backdrop { background: #17332a80; }
 .editor-fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
@@ -95,3 +95,11 @@ footer { flex-wrap: wrap; gap: 8px; color: #5b7167; }
   background: #fff;
 }
 .edit-marker { color: #236356; font-size: 12px; font-weight: 650; }
+
+.group-toggle { margin-top: 8px; }
+.group-toggle input { margin-inline-end: 6px; }
+.infant-group td { background: #f4f9f5; }
+.merge-badge { display: block; margin-top: 4px; white-space: normal; }
+.merge-conflict { margin-top: 12px; padding: 12px; border: 1px solid #dbe4e0; border-radius: 8px; }
+.merge-conflict ul, #merge-sources { padding-inline-start: 20px; overflow-wrap: anywhere; }
+#merge-error:not(:empty) { color: #8c3828; }

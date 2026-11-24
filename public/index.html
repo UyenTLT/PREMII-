@@ -4,15 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PREMII · File-based assessment</title>
-    <link rel="stylesheet" href="style.css?v=observation-edit-1" />
-    <script src="i18n.js?v=observation-edit-1" defer></script>
+    <link rel="stylesheet" href="style.css?v=infant-merge-1" />
+    <script src="i18n.js?v=infant-merge-1" defer></script>
     <script src="suggestions.js?v=20261117-excel" defer></script>
     <script src="extraction.js?v=20261117-excel" defer></script>
     <script src="vendor/jszip.min.js" defer></script>
     <script src="spreadsheet.js?v=20261117-excel" defer></script>
-    <script src="app.js?v=observation-edit-1" defer></script>
+    <script src="app.js?v=infant-merge-1" defer></script>
     <script src="vendor/mammoth.browser.min.js" defer></script>
-    <script src="documents.js?v=observation-edit-1" defer></script>
+    <script src="documents.js?v=infant-merge-1" defer></script>
   </head>
   <body>
     <noscript
@@ -126,6 +126,7 @@
         <div id="record-search-panel" hidden>
           <label for="record-search">Search by Infant ID</label>
           <input id="record-search" type="search" autocomplete="off" />
+          <label class="group-toggle"><input id="group-by-infant" type="checkbox" /> Group by Infant ID</label>
           <p id="record-search-count" class="muted" role="status"></p>
         </div>
         <p id="no-results" class="empty" hidden>No observations match this Infant ID.</p>
@@ -173,6 +174,8 @@
             verified. Review the original source before saving corrections.
           </p>
           <button id="edit-observation" type="button" class="secondary">Edit observation</button>
+          <button id="merge-observations" type="button" class="secondary" hidden>Merge same-shift observations</button>
+          <button id="undo-observation-merge" type="button" class="secondary" hidden>Undo merge</button>
           <div id="extracted-fields" class="extracted-grid"></div>
         </div>
         <details class="card">
@@ -201,6 +204,19 @@
         <div class="editor-actions">
           <button id="cancel-observation" type="button" class="secondary">Cancel</button>
           <button type="submit">Save changes</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="merge-dialog" aria-labelledby="merge-title">
+      <form id="merge-form">
+        <h2 id="merge-title">Merge same-shift observations</h2>
+        <p class="muted">Original notes stay available. The merged observation replaces them in Excel, CSV and JSON exports.</p>
+        <ul id="merge-sources"></ul>
+        <div id="merge-conflicts"></div>
+        <p id="merge-error" role="alert" class="import-error"></p>
+        <div class="editor-actions">
+          <button id="cancel-merge" type="button" class="secondary">Cancel</button>
+          <button type="submit">Save merged observation</button>
         </div>
       </form>
     </dialog>

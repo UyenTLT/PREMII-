@@ -5,6 +5,7 @@ let pdfReader;
 let lastImportSummary=null;
 const importItems=[];
 function noteKey(record){
+ if(record.mergedFrom)return null;
  const original=field=>record.manualEdits?.[field]?record.manualEdits[field].originalValue:record[field];
  const infant=original('infant');
  if(!infant)return null;
@@ -96,7 +97,7 @@ async function importDocuments(files){
    selectedRecordId=firstNewRecordId;
    detailsOpen=false;
    $('#record-search').value='';
-   recordPage=Math.floor(records.findIndex(r=>r.recordId===firstNewRecordId)/RECORDS_PER_PAGE);
+   showRecordInList(activeRecord());
   }
   render();
   const added=records.length-startCount;
@@ -122,7 +123,7 @@ fileDropZone.addEventListener('drop', event => {
   fileDropZone.classList.remove('dragging');
   importDocuments([...event.dataTransfer.files]);
 });
-$('#clear-source').onclick=()=>{if(records.length&&!confirm(t('Clear all imported documents and extracted results?')))return;importGeneration++;records.splice(0);selectedRecordId=null;detailsOpen=false;recordPage=0;$('#record-search').value='';lastImportSummary=null;importItems.splice(0);$('#source-file').disabled=false;$('#source-file').value='';$('#source-text').value='';$('#import-files').replaceChildren();$('#import-file-details').hidden=true;$('#import-issues').replaceChildren();$('#import-issues').hidden=true;$('#import-status').textContent='';$('#print-report').replaceChildren();render();};
+$('#clear-source').onclick=()=>{if(records.length&&!confirm(t('Clear all imported documents and extracted results?')))return;importGeneration++;records.splice(0);expandedGroups.clear();selectedRecordId=null;detailsOpen=false;recordPage=0;$('#record-search').value='';lastImportSummary=null;importItems.splice(0);$('#source-file').disabled=false;$('#source-file').value='';$('#source-text').value='';$('#import-files').replaceChildren();$('#import-file-details').hidden=true;$('#import-issues').replaceChildren();$('#import-issues').hidden=true;$('#import-status').textContent='';$('#print-report').replaceChildren();render();};
 window.addEventListener('languagechange',()=>{if(lastImportSummary)renderImportStatus();else $('#import-status').textContent=translateText($('#import-status').textContent);importItems.forEach(renderImportItem);});
 function buildReport(){
  const report=$('#print-report');report.replaceChildren();const r=activeRecord();if(!r)return report;
@@ -138,10 +139,10 @@ function buildReport(){
   const head=node('header',undefined,'pdf-header');const brand=node('div');brand.append(node('p','PREMII™','pdf-brand'),node('h1',t(title)));head.append(brand,node('span',`${pageNumber} / ${totalPages}`,'pdf-page-number'));sheet.append(head);
   const meta=node('div',undefined,'pdf-meta');
   for(const [label,value] of [
-   ['Infant / study ID',r.infant??t('Not documented')],['Source note timestamp',`${r.date??t('Date not documented')} ${r.noteTime??''}`],
+   ['Infant / study ID',r.infant??t('Not documented')],[r.mergedFrom?'Date':'Source note timestamp',`${r.date??t('Date not documented')} ${r.noteTime??''}`],
    ['Shift',r.shift?`${t('Shift')} ${r.shift}`:t('Shift not documented')],['Start time / end time',`${r.start??'—'} / ${r.end??'—'}`]
   ]){const item=node('div');item.append(node('span',t(label)),node('strong',clip(value,70)));meta.append(item);}sheet.append(meta);
-  sheet.append(node('p',`${t('Source document')}: ${clip(r.filename,110)} · ${t('Source line')} ${r.sourceLine}`,'pdf-source'));
+  sheet.append(node('p',`${t('Source document')}: ${clip(r.filename,110)}${r.mergedFrom?'':' · '+t('Source line')+' '+r.sourceLine}`,'pdf-source'));
   const content=node('div',undefined,'pdf-content');sheet.append(content);
   const footer=node('footer',undefined,'pdf-footer');footer.append(node('span','PREMII™ · © 2018 Shire Human Genetic Therapies, Inc.'),node('span',t('Adapted research report · No total score')));sheet.append(footer);report.append(sheet);return content;
  }
@@ -155,7 +156,7 @@ function buildReport(){
  function section(parent,title){const block=node('section',undefined,'pdf-section');block.append(node('h2',t(title)));parent.append(block);return block;}
  function rows(parent,items){const table=node('table',undefined,'pdf-values');const body=node('tbody');for(const [label,field,unit] of items){const row=node('tr');row.append(node('th',t(label)));const val=value(field);row.append(node('td',val+(unit&&r[field]!=null?' '+unit:'')));body.append(row);}table.append(body);parent.append(table);}
  const first=page('Observation summary',1);
- first.append(node('p',t(r.manualEdits?'Contains manual edits · One source note':'Automatically extracted · Unverified · One source note, not an assumed complete shift'),'pdf-status'));
+ first.append(node('p',t(r.mergedFrom?'Merged observations · Review original sources':r.manualEdits?'Contains manual edits · One source note':'Automatically extracted · Unverified · One source note, not an assumed complete shift'),'pdf-status'));
  const resp=section(first,'01 · Respiratory support & oxygen');
  rows(resp,[['Respiratory support','RES1'],['Device','RES2'],['Flow source','RES3'],['Greatest flow','RES3_1','cc/min'],['Highest oxygen concentration','OA']]);
  const pair=node('div',undefined,'pdf-pair');first.append(pair);

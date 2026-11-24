@@ -1,6 +1,8 @@
 'use strict';
 const $=s=>document.querySelector(s);
 const records=[];
+const expandedGroups=new Set();
+let mergeSequence=0;
 let selectedRecordId=null;
 let detailsOpen=false;
 let recordPage=0;
@@ -37,8 +39,48 @@ function matchingRecords(){
  const query=$('#record-search').value.trim().toLowerCase();
  return query?records.filter(record=>record.infant?.toLowerCase().includes(query)):records;
 }
+function exportableRecords(){
+ const mergedIds=new Set(records.flatMap(record=>record.mergedFrom?.map(source=>source.recordId)??[]));
+ return records.filter(record=>!mergedIds.has(record.recordId));
+}
+function mergedParent(record){
+ return records.find(item=>item.mergedFrom?.some(source=>source.recordId===record.recordId));
+}
+function sameShiftSources(record){
+ if(!record||record.mergedFrom||!record.infant||!record.date||!record.shift)return [];
+ const scope=records.filter(item=>item.infant===record.infant&&item.date===record.date&&item.shift===record.shift);
+ if(scope.some(item=>item.mergedFrom))return [];
+ return scope.filter(item=>!mergedParent(item));
+}
+function recordGroups(rows){
+ const grouped=new Map();
+ for(const row of rows){
+  const key=row.infant?'infant:'+row.infant:'record:'+row.recordId;
+  if(!grouped.has(key))grouped.set(key,[]);
+  grouped.get(key).push(row);
+ }
+ return [...grouped];
+}
+function showRecordInList(record){
+ let rows=matchingRecords();
+ if(!rows.includes(record)){
+  $('#record-search').value='';
+  rows=records;
+ }
+ if($('#group-by-infant').checked){
+  const groups=recordGroups(rows);
+  const index=groups.findIndex(([,items])=>items.includes(record));
+  if(index>=0)expandedGroups.add(groups[index][0]);
+  recordPage=Math.floor(Math.max(0,index)/RECORDS_PER_PAGE);
+ }else{
+  recordPage=Math.floor(Math.max(0,rows.indexOf(record))/RECORDS_PER_PAGE);
+ }
+}
 function render(){
  const visibleRecords=matchingRecords();
+ const grouped=$('#group-by-infant').checked;
+ const groups=grouped?recordGroups(visibleRecords):[];
+ const pageCount=grouped?groups.length:visibleRecords.length;
  const active=activeRecord();
  $('#record-count').textContent=records.length;$('#empty-state').hidden=!!records.length;$('#results-section').hidden=!active||!detailsOpen;
  for(const id of ['export-json','export-csv'])$('#'+id).disabled=!records.length;
@@ -52,15 +94,16 @@ function render(){
  );
  for(const id of ['export-excel','quick-export-excel']){$('#'+id).disabled=!records.length||exportingExcel;$('#'+id).textContent=t(exportingExcel?'Creating Excel…':'Excel (.xlsx) · All observations');}
  const infantCount=new Set(records.filter(r=>r.infant!==null).map(r=>r.infant)).size;
- $('#output-summary').textContent=`${records.length} ${t('observations')} · ${infantCount} ${t('infants')}`;
- recordPage=Math.min(recordPage,Math.max(0,Math.ceil(visibleRecords.length/RECORDS_PER_PAGE)-1));
- $('#record-pagination').hidden=visibleRecords.length<=RECORDS_PER_PAGE;
+ const exportCount=records.some(record=>record.mergedFrom)?' · '+exportableRecords().length+' '+t('observations in batch exports'):'';
+ $('#output-summary').textContent=`${records.length} ${t('observations')} · ${infantCount} ${t('infants')}${exportCount}`;
+ recordPage=Math.min(recordPage,Math.max(0,Math.ceil(pageCount/RECORDS_PER_PAGE)-1));
+ $('#record-pagination').hidden=pageCount<=RECORDS_PER_PAGE;
  $('#previous-page').disabled=recordPage===0;
- $('#next-page').disabled=(recordPage+1)*RECORDS_PER_PAGE>=visibleRecords.length;
- $('#page-summary').textContent=`${t('Page')} ${recordPage+1} / ${Math.max(1,Math.ceil(visibleRecords.length/RECORDS_PER_PAGE))} · ${visibleRecords.length} ${t('observations')}`;
+ $('#next-page').disabled=(recordPage+1)*RECORDS_PER_PAGE>=pageCount;
+ $('#page-summary').textContent=`${t('Page')} ${recordPage+1} / ${Math.max(1,Math.ceil(pageCount/RECORDS_PER_PAGE))} · ${visibleRecords.length} ${t('observations')}`;
  const body=$('#records-table tbody');
  body.replaceChildren();
- for(const r of visibleRecords.slice(recordPage*RECORDS_PER_PAGE,(recordPage+1)*RECORDS_PER_PAGE)){
+ function appendObservation(r){
   const row=node('tr',undefined,r.recordId===selectedRecordId?'selected-record':undefined);
   const view=node('button',t('View source results'),'secondary');
   view.type='button';
@@ -75,22 +118,54 @@ function render(){
   for(const value of [
    r.infant??t('Not found in source'),
    timestamp||t('Date not documented'),
-   r.filename,
+   r.mergedFrom?t('Merged observation'):r.filename,
    r.shift?`${t('Shift')} ${r.shift}`:t('Shift not documented'),
    `${documented} / ${Object.keys(labels).length}`
   ])row.append(node('td',value));
   const action=node('td');
   action.append(view);
+  if(mergedParent(r))action.append(node('small',t('Included in merged observation'),'merge-badge'));
   row.append(action);
   body.append(row);
  }
- const pdfSelection=active?`${t('Selected for PDF')} · ${active.infant??t('Infant ID not documented')} · ${[active.date,active.noteTime].filter(Boolean).join(' ')||t('Date not documented')} · ${active.filename}`:'';
+ const offset=recordPage*RECORDS_PER_PAGE;
+ if(grouped){
+  for(const [key,items] of groups.slice(offset,offset+RECORDS_PER_PAGE)){
+   const groupRow=node('tr',undefined,'infant-group');
+   const cell=node('td');
+   cell.colSpan=6;
+   const open=expandedGroups.has(key);
+   const toggle=node('button',`${items[0].infant??t('Infant ID not documented')} · ${items.length} ${t('observations')}`,'secondary');
+   toggle.type='button';
+   toggle.dataset.groupKey=key;
+   toggle.setAttribute('aria-expanded',String(open));
+   toggle.onclick=()=>{
+    if(open)expandedGroups.delete(key);
+    else expandedGroups.add(key);
+    render();
+    for(const button of body.querySelectorAll('[data-group-key]')){
+     if(button.dataset.groupKey===key){button.focus();break;}
+    }
+   };
+   cell.append(toggle);
+   groupRow.append(cell);
+   body.append(groupRow);
+   if(open)items.forEach(appendObservation);
+  }
+ }else{
+  visibleRecords.slice(offset,offset+RECORDS_PER_PAGE).forEach(appendObservation);
+ }
+ $('#merge-observations').hidden=sameShiftSources(active).length<2;
+ $('#undo-observation-merge').hidden=!active?.mergedFrom;
+ $('#edit-observation').disabled=!!(active&&mergedParent(active));
+ const pdfSelection=active?`${t('Selected for PDF')} · ${active.infant??t('Infant ID not documented')} · ${[active.date,active.noteTime].filter(Boolean).join(' ')||t('Date not documented')} · ${active.mergedFrom?t('Merged observation'):active.filename}`:'';
  $('#pdf-selection').textContent=pdfSelection;
  $('#records-pdf-selection').textContent=pdfSelection;
  $('#records-pdf-selection').hidden=!active;
  const r=active;if(!r){$('#selected-note').textContent='';$('#source-context').textContent='';$('#source-text').value='';$('#extracted-fields').replaceChildren();return;}
  $('#selected-note').textContent=`${r.infant??t('Infant ID not documented')} · ${r.date??t('Date not documented')} ${r.noteTime??''}`;
- $('#source-context').textContent=`${r.manualEdits?t('Manually edited')+' · ':''}${r.filename} · ${t('Source line')} ${r.sourceLine} · ${r.shift?`${t('Shift')} ${r.shift}`:t('Shift not documented')}`;
+ if(r.mergedFrom)$('#source-context').textContent=t('Merged observation')+' · '+r.mergedFrom.map(source=>source.filename+' :'+source.sourceLine).join(' · ');
+ else $('#source-context').textContent=`${r.manualEdits?t('Manually edited')+' · ':''}${r.filename} · ${t('Source line')} ${r.sourceLine} · ${r.shift?`${t('Shift')} ${r.shift}`:t('Shift not documented')}`;
  $('#source-text').value=r.sourceText;
  const details=$('#extracted-fields');details.replaceChildren();
  for(const [field,label] of Object.entries(labels)){
@@ -104,14 +179,18 @@ function render(){
  }
 }
 function download(content,type,ext){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=`premii-${new Date().toISOString().slice(0,10)}.${ext}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-function exportRecords(){return records.map(({sourceText,...r})=>r);}
+function exportRecords(){return exportableRecords().map(({sourceText,...r})=>r);}
 $('#export-json').onclick=()=>download(JSON.stringify({instrument:'PREMII',totalScoreCalculated:false,mode:'file-only',records:exportRecords()},null,2),'application/json','json');
-$('#export-csv').onclick=()=>{const rows=records;const keys=PREMII_FIELDS;const esc=v=>'"'+(typeof v==='object'&&v!==null?JSON.stringify(v):String(v??'')).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';download('\uFEFF'+[keys,...rows.map(r=>keys.map(k=>r[k]))].map(row=>row.map(esc).join(',')).join('\r\n'),'text/csv;charset=utf-8','csv');};
+$('#export-csv').onclick=()=>{const rows=exportableRecords();const keys=PREMII_FIELDS;const esc=v=>'"'+(typeof v==='object'&&v!==null?JSON.stringify(v):String(v??'')).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';download('\uFEFF'+[keys,...rows.map(r=>keys.map(k=>r[k]))].map(row=>row.map(esc).join(',')).join('\r\n'),'text/csv;charset=utf-8','csv');};
 window.addEventListener('beforeunload',e=>{if(records.length){e.preventDefault();e.returnValue='';}});
 window.addEventListener('languagechange',()=>{render();localizeDOM();$('#toast').textContent=translateText($('#toast').textContent);});
 render();localizeDOM();
 
 $('#show-results').onclick=()=>$('#records').focus();
+$('#group-by-infant').addEventListener('change',()=>{
+ recordPage=0;
+ render();
+});
 $('#record-search').addEventListener('input',()=>{
  recordPage=0;
  render();
@@ -124,7 +203,7 @@ $('#next-page').onclick=()=>{recordPage++;render();$('#records').scrollIntoView(
 $('#export-excel').onclick=async()=>{
  if(!records.length||exportingExcel)return;
  exportingExcel=true;render();
- try{const workbook=await createPremiiWorkbook(records);download(workbook,PREMII_XLSX_TYPE,'xlsx');}
+ try{const workbook=await createPremiiWorkbook(exportableRecords());download(workbook,PREMII_XLSX_TYPE,'xlsx');}
  catch{notify(t('Excel export failed. Please try again.'));}
  finally{exportingExcel=false;render();}
 };
@@ -158,6 +237,7 @@ $('#edit-observation').onclick=()=>{
   const choices=options[field]??codedLabels[field];
   const input=node(choices?'select':'input');
   input.name=field;
+  input.disabled=!!record.mergedFrom&&['infant','date','shift','noteTime'].includes(field);
   if(choices){
    const blank=node('option',t('Not documented'));
    blank.value='';
@@ -201,15 +281,7 @@ editorForm.onsubmit=event=>{
   const value=input.value===input.dataset.initialValue?record[field]??null:input.value.trim()||null;
   return [field,value];
  }));
- const constraints=[
-  ['RES1','OA',updated.RES1==='2','Clear oxygen concentration for low-flow support.'],
-  ['RES1','RES2',updated.RES1!==null&&updated.RES1!=='5','Clear the device for this respiratory support.'],
-  ['RES1','RES3',updated.RES1!==null&&updated.RES1!=='2','Clear the flow source for this respiratory support.'],
-  ['RES1','RES3_1',updated.RES1!==null&&updated.RES1!=='2','Clear the flow value for this respiratory support.'],
-  ['fed','FEED1',updated.fed==='no','Clear the feeding level when no feeds occurred.'],
-  ['fed','FEED2',updated.fed==='no','Clear the feeding method when no feeds occurred.']
- ];
- for(const [controller,field,invalid,message] of constraints){
+ for(const [controller,field,invalid,message] of observationConstraints(updated)){
   if(!invalid||updated[field]===null||(updated[field]===record[field]&&updated[controller]===record[controller]))continue;
   const input=editorForm.elements.namedItem(field);
   input.setCustomValidity(t(message));
@@ -239,4 +311,139 @@ editorForm.onsubmit=event=>{
  render();
  $('#edit-observation').focus();
  if(changed)notify(t('Observation updated.'));
+};
+
+function observationConstraints(updated){
+ return [
+  ['RES1','OA',updated.RES1==='2','Clear oxygen concentration for low-flow support.'],
+  ['RES1','RES2',updated.RES1!==null&&updated.RES1!=='5','Clear the device for this respiratory support.'],
+  ['RES1','RES3',updated.RES1!==null&&updated.RES1!=='2','Clear the flow source for this respiratory support.'],
+  ['RES1','RES3_1',updated.RES1!==null&&updated.RES1!=='2','Clear the flow value for this respiratory support.'],
+  ['fed','FEED1',updated.fed==='no','Clear the feeding level when no feeds occurred.'],
+  ['fed','FEED2',updated.fed==='no','Clear the feeding method when no feeds occurred.']
+ ];
+}
+
+const mergeDialog=$('#merge-dialog');
+let mergeDraft=null;
+
+function mergeSourceLabel(record){
+ return [record.filename,record.noteTime,t('Source line')+' '+record.sourceLine].filter(Boolean).join(' · ');
+}
+
+$('#merge-observations').onclick=()=>{
+ const selected=activeRecord();
+ const sources=sameShiftSources(selected);
+ if(sources.length<2)return;
+ const prototype={
+  infant:selected.infant,date:selected.date,shift:selected.shift,noteTime:null,
+  evidence:{},fieldStatus:{},fieldSources:{}
+ };
+ const conflicts=new Map();
+ const conflictPanel=$('#merge-conflicts');
+ conflictPanel.replaceChildren();
+ $('#merge-error').textContent='';
+ $('#merge-sources').replaceChildren(...sources.map(source=>node('li',mergeSourceLabel(source))));
+ for(const field of PREMII_FIELDS){
+  if(['infant','date','shift'].includes(field))continue;
+  const present=sources.filter(source=>source[field]!=null);
+  const values=new Set(present.map(source=>source[field]));
+  const unresolved=sources.filter(source=>source.fieldStatus[field]==='conflicting');
+  prototype[field]=null;
+  if(values.size<2&&!unresolved.length){
+   if(present.length)applyMergedValue(prototype,field,present[0],present);
+   else prototype.fieldStatus[field]=sources.every(source=>source.fieldStatus[field]==='not-applicable')?'not-applicable':'not-found';
+   continue;
+  }
+  const box=node('div',undefined,'merge-conflict');
+  const label=node('label',t(editorLabels[field])+' · '+field);
+  const select=node('select');
+  select.name=field;
+  select.required=true;
+  const placeholder=node('option',t('Choose a source or leave unresolved'));
+  placeholder.value='';
+  select.append(placeholder);
+  const blank=node('option',t('Leave unresolved'));
+  blank.value='unresolved';
+  select.append(blank);
+  const evidence=node('ul');
+  for(const [index,source] of present.entries()){
+   const option=node('option',fieldValue(source,field)+' · '+mergeSourceLabel(source));
+   option.value=String(index);
+   select.append(option);
+   const snippet=source.evidence[field];
+   if(snippet&&!source.manualEdits?.[field])evidence.append(node('li',mergeSourceLabel(source)+' — '+snippet));
+  }
+  for(const source of unresolved){
+   evidence.append(node('li',mergeSourceLabel(source)+' — '+(source.evidence[field]??t('Conflicting source values'))));
+  }
+  label.append(select);
+  box.append(label,evidence);
+  conflictPanel.append(box);
+  conflicts.set(field,present);
+ }
+ if(conflicts.size)conflictPanel.prepend(node('h3',t('Resolve conflicting values')));
+ mergeDraft={selected,sources,prototype,conflicts};
+ mergeDialog.showModal();
+};
+
+function applyMergedValue(target,field,source,agreeingSources){
+ target[field]=source[field];
+ target.fieldStatus[field]=source.fieldStatus[field];
+ target.fieldSources[field]=agreeingSources.map(item=>item.recordId);
+ if(source.evidence[field]&&!source.manualEdits?.[field])target.evidence[field]=source.evidence[field];
+}
+
+$('#merge-form').onsubmit=event=>{
+ event.preventDefault();
+ if(!mergeDraft)return;
+ const {selected,sources,prototype,conflicts}=mergeDraft;
+ const current=sameShiftSources(selected);
+ if(current.length!==sources.length||sources.some(source=>!current.includes(source))){
+  $('#merge-error').textContent=t('The source list changed. Close this dialog and start the merge again.');
+  return;
+ }
+ const result=structuredClone(prototype);
+ const choices=new FormData(event.currentTarget);
+ for(const [field,options] of conflicts){
+  const index=choices.get(field);
+  if(index==='unresolved'){
+   result.fieldStatus[field]='conflicting';
+   continue;
+  }
+  const source=options[Number(index)];
+  if(!source)return;
+  applyMergedValue(result,field,source,options.filter(item=>item[field]===source[field]));
+ }
+ const incompatible=observationConstraints(result).find(([,field,invalid])=>invalid&&result[field]!==null);
+ if(incompatible){
+  $('#merge-error').textContent=t(incompatible[3])+' '+t('Review the source observations or choose another value before merging.');
+  return;
+ }
+ result.recordId='merged-'+(++mergeSequence);
+ result.extractionStatus='merged-unverified';
+ result.schemaVersion=selected.schemaVersion;
+ result.mergedFrom=sources.map(({recordId,filename,sourceLine,noteTime})=>({recordId,filename,sourceLine,noteTime}));
+ result.filename=sources.map(source=>source.filename).join(', ');
+ result.sourceText=sources.map(source=>mergeSourceLabel(source)+'\n'+source.sourceText).join('\n\n');
+ records.push(result);
+ selectedRecordId=result.recordId;
+ showRecordInList(result);
+ mergeDialog.close();
+ render();
+ $('#selected-note').focus();
+ notify(t('Merged observation saved.'));
+};
+$('#cancel-merge').onclick=()=>mergeDialog.close();
+mergeDialog.addEventListener('close',()=>{mergeDraft=null;});
+$('#undo-observation-merge').onclick=()=>{
+ const merged=activeRecord();
+ if(!merged?.mergedFrom)return;
+ if(!confirm(t('Undo this merge? Changes to the merged observation will be discarded.')))return;
+ records.splice(records.indexOf(merged),1);
+ selectedRecordId=merged.mergedFrom[0].recordId;
+ showRecordInList(activeRecord());
+ render();
+ $('#selected-note').focus();
+ notify(t('Merge undone.'));
 };
