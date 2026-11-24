@@ -77,3 +77,22 @@ test("Workspace links explicitly dated settings to blank rows for the same infan
     { oa: null, readings: [] },
   ]);
 });
+
+test("Workspace reads short ventilator settings with a documented percent", () => {
+  const rows = browser.extractFileRecords([
+    "Infant ID: SYN-03",
+    "2024/02/01   08:00",
+    "Vent: IMV 25%",
+    "2024/02/02   08:00",
+    "Venti: NIMV 2/1 FiO2 30% → CPAP 2/2 21%",
+    "2024/02/03   08:00",
+    "Vent: NIMV; SpO2 95%",
+  ].join("\n"), "synthetic.txt");
+  assert.deepEqual(Array.from(rows, (record: any) =>
+    Array.from(record.fio2Readings, (reading: any) => [reading.percent, reading.referenceDate])
+  ), [
+    [[25, null]],
+    [[30, "2/1"], [21, null]],
+    [],
+  ]);
+});

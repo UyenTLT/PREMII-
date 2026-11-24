@@ -49,9 +49,10 @@ function ventilatorFiO2(text,noteDate){
  const range=String.raw`\(?(`+date+String.raw`)(?:\s*[-–~]\s*(`+date+String.raw`|\d{1,2}))?\)?`;
  const tuple=String.raw`\[\s*(\d+(?:\.\d+)?)\s*%(?:[ ,\t]+\d+(?:\.\d+)?(?:\s*/\s*\d+(?:\.\d+)?)?)*(?:\s*cm\s*H2O)?\s*\]`;
  const unbracketed=String.raw`(\d+(?:\.\d+)?)\s*%[ ,\t]+\d+(?:\.\d+)?[ ,\t]+\d+(?:\.\d+)?(?:\s*/\s*\d+(?:\.\d+)?)?`;
+ const percentOnly=String.raw`(?:Fi[ \t]*O[ \t]*2\s*[:=]?\s*)?(\d+(?:\.\d+)?)\s*%(?=\s*(?:$|[,;]|[-=]*>|→))`;
  const entries=new RegExp(String.raw`(?:^|[ \t,;→>])(?:`+
   String.raw`(`+mode+String.raw`)\s*(?:`+range+String.raw`\s*)?|`+
-  range+String.raw`\s*(?:intubated\s+)?(`+mode+String.raw`)?\s*)(?:`+tuple+'|'+unbracketed+')','gi');
+  range+String.raw`\s*(?:intubated\s+)?(`+mode+String.raw`)?\s*)(?:`+tuple+'|'+unbracketed+'|'+percentOnly+')','gi');
  const header=/^\s*(?:[#@•-]\s*)?(?:Vent(?:i(?:lation|lator)?)?(?: settings)?|Respiratory support|呼吸器(?:設定)?)(?:\s*:\s*|\s+)/i;
  const prefix=/^\s*(?:[#@•-]\s*)?/;
  const excluded=/\b(?:planned|consider|target|goal|if needed)\b|預計|目標|考慮/i;
@@ -68,11 +69,12 @@ function ventilatorFiO2(text,noteDate){
   const settings=normalized.replace(header,'').replace(prefix,'');
   let hasMode=false;
   for(const match of settings.matchAll(entries)){
-   const [,firstMode,firstStart,firstEnd,secondStart,secondEnd,secondMode,bracketedPercent,unbracketedPercent]=match;
+   const [,firstMode,firstStart,firstEnd,secondStart,secondEnd,secondMode,bracketedPercent,unbracketedPercent,standalonePercent]=match;
    if(!hasMode&&match.index!==0)break;
    if(!hasMode&&!firstMode&&!secondMode)break;
    hasMode=true;
-   const percent=Number(bracketedPercent??unbracketedPercent);
+   if(standalonePercent!==undefined&&!header.test(normalized))continue;
+   const percent=Number(bracketedPercent??unbracketedPercent??standalonePercent);
    if(percent<21||percent>100)continue;
    const evidence=line.trim();
    const startText=firstStart??secondStart;
@@ -132,7 +134,9 @@ function extractFileRecords(text,filename,fileId='file-1'){
   r.infant=segment.infant;r.date=segment.date;r.recordId=`${fileId}-${index+1}`;r.patientKey=`${fileId}-${segment.caseIndex}`;r.noteTime=segment.noteTime;
   r.filename=filename;r.sourceLine=segment.line;r.extractionStatus='automated-unverified';r.schemaVersion='premii-file-observations-v2';r.evidence={};r.fieldStatus=Object.fromEntries(PREMII_FIELDS.map(k=>[k,'not-found']));
   const clinical=currentObservations(segment.text,segment.date);
-  r.fio2Readings=[...documentedFiO2(clinical),...ventilatorFiO2(segment.text,segment.date)];
+  const ventilatorReadings=ventilatorFiO2(segment.text,segment.date);
+  const datedLines=new Set(ventilatorReadings.filter(reading=>reading.settingStart).map(reading=>reading.evidence));
+  r.fio2Readings=[...documentedFiO2(clinical).filter(reading=>!datedLines.has(reading.evidence)),...ventilatorReadings];
   const proposals=extractSuggestions(clinical,r.fio2Readings.filter(reading=>!reading.referenceDate));
   for(const p of proposals){if(p.field==='weighed')continue;r[p.field]=p.value;r.evidence[p.field]=p.evidence;r.fieldStatus[p.field]='extracted';}
   const set=(field,v,evidence)=>{if(v!==null&&v!==undefined){r[field]=v;r.fieldStatus[field]='extracted';r.evidence[field]=evidence;}};
