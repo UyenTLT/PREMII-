@@ -6,6 +6,9 @@ const fs=require('node:fs');
  assert.equal(await page.locator('main form,main input:not([type=file]):not(#record-search):not(#group-by-infant)').count(),0);assert.equal(await page.locator('textarea:not([readonly])').count(),0);
  const text='【研究ID：TEST-001】\nDate: 2026-11-03\nOn nCPAP\nFiO2: 35%\nWeight: 1230 g\nABD1_1: 0\n【研究ID：TEST-002】\nNo usable observations.';
  await page.setInputFiles('#source-file',{name:'synthetic.txt',mimeType:'text/plain',buffer:Buffer.from(text)});await page.waitForFunction(()=>document.querySelectorAll('#records-table tbody tr').length===2);
+ assert.equal(await page.locator('#group-by-infant').isChecked(),true);
+ assert.equal(await page.locator('.infant-group button[aria-expanded="false"]').count(),2);
+ await page.locator('#group-by-infant').uncheck();
  assert.equal(await page.locator('#results-section').isVisible(),false);await page.locator('#records-table tbody tr').first().getByRole('button').click();
  assert.match(await page.locator('#selected-note').innerText(),/TEST-001/);assert.match(await page.locator('#extracted-fields').innerText(),/Not found in source/);assert.equal(await page.locator('#extracted-fields article').filter({has:page.locator('p.eyebrow', {hasText:/^ABD1_1$/})}).locator('.extracted-value').innerText(),'0');
  const exportJson=async path=>{const wait=page.waitForEvent('download');await page.click('#export-json');await(await wait).saveAs(path);return JSON.parse(fs.readFileSync(path,'utf8'));};
@@ -52,10 +55,11 @@ sys.stdout.buffer.write(b.getvalue())`]);
   ['shift-b.txt','2026-11-20 09:00','Shift: 1\nWeight: 1250 g\nFiO2: 35%'],
   ['shift-c.txt','2026-11-20 16:00','Shift: 2\nWeight: 1300 g']
  ].map(([name,stamp,note])=>({name,mimeType:'text/plain',buffer:Buffer.from(`Study ID: MERGE-001\n${stamp}\n${note}`)}));
+ await page.locator('#group-by-infant').check();
  await page.setInputFiles('#source-file',mergeFiles);
  await page.waitForFunction(()=>!document.querySelector('#source-file').disabled);
  await page.locator('#record-search').fill('MERGE-001');
- await page.locator('#group-by-infant').check();
+ assert.equal(await page.locator('.infant-group button').getAttribute('aria-expanded'),'false');
  assert.equal(await page.locator('#records-table tbody tr').count(),1);
  await page.getByRole('button',{name:/MERGE-001.*3 observations/}).click();
  assert.equal(await page.locator('#records-table tbody tr').count(),4);

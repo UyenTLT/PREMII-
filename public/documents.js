@@ -97,7 +97,8 @@ async function importDocuments(files){
    selectedRecordId=firstNewRecordId;
    detailsOpen=false;
    $('#record-search').value='';
-   showRecordInList(activeRecord());
+   expandedGroups.clear();
+   showRecordInList(activeRecord(),false);
   }
   render();
   const added=records.length-startCount;

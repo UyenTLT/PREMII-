@@ -61,7 +61,7 @@ function recordGroups(rows){
  }
  return [...grouped];
 }
-function showRecordInList(record){
+function showRecordInList(record,expandGroup=true){
  let rows=matchingRecords();
  if(!rows.includes(record)){
   $('#record-search').value='';
@@ -70,7 +70,7 @@ function showRecordInList(record){
  if($('#group-by-infant').checked){
   const groups=recordGroups(rows);
   const index=groups.findIndex(([,items])=>items.includes(record));
-  if(index>=0)expandedGroups.add(groups[index][0]);
+  if(expandGroup&&index>=0)expandedGroups.add(groups[index][0]);
   recordPage=Math.floor(Math.max(0,index)/RECORDS_PER_PAGE);
  }else{
   recordPage=Math.floor(Math.max(0,rows.indexOf(record))/RECORDS_PER_PAGE);

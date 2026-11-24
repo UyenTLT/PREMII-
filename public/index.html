@@ -4,15 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PREMII · File-based assessment</title>
-    <link rel="stylesheet" href="style.css?v=infant-merge-1" />
+    <link rel="stylesheet" href="style.css?v=infant-groups-default" />
     <script src="i18n.js?v=infant-merge-1" defer></script>
     <script src="suggestions.js?v=20261117-excel" defer></script>
     <script src="extraction.js?v=20261117-excel" defer></script>
     <script src="vendor/jszip.min.js" defer></script>
     <script src="spreadsheet.js?v=20261117-excel" defer></script>
-    <script src="app.js?v=infant-merge-1" defer></script>
+    <script src="app.js?v=infant-groups-default" defer></script>
     <script src="vendor/mammoth.browser.min.js" defer></script>
-    <script src="documents.js?v=infant-merge-1" defer></script>
+    <script src="documents.js?v=infant-groups-default" defer></script>
   </head>
   <body>
     <noscript
@@ -126,7 +126,7 @@
         <div id="record-search-panel" hidden>
           <label for="record-search">Search by Infant ID</label>
           <input id="record-search" type="search" autocomplete="off" />
-          <label class="group-toggle"><input id="group-by-infant" type="checkbox" /> Group by Infant ID</label>
+          <label class="group-toggle"><input id="group-by-infant" type="checkbox" checked /> Group by Infant ID</label>
           <p id="record-search-count" class="muted" role="status"></p>
         </div>
         <p id="no-results" class="empty" hidden>No observations match this Infant ID.</p>

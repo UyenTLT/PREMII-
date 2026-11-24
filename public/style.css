@@ -103,3 +103,9 @@ footer { flex-wrap: wrap; gap: 8px; color: #5b7167; }
 .merge-conflict { margin-top: 12px; padding: 12px; border: 1px solid #dbe4e0; border-radius: 8px; }
 .merge-conflict ul, #merge-sources { padding-inline-start: 20px; overflow-wrap: anywhere; }
 #merge-error:not(:empty) { color: #8c3828; }
+
+.infant-group button::before {
+  content: "▸";
+  margin-inline-end: 8px;
+}
+.infant-group button[aria-expanded="true"]::before { content: "▾"; }

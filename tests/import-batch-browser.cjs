@@ -9,6 +9,7 @@ const fs=require('node:fs');
  const batch= [fixture.slice(0,32),fixture.slice(32)].map((items,index)=>({name:`batch-${index+1}.txt`,mimeType:'text/plain',buffer:Buffer.from(items.join('\n'))}));
  await page.setInputFiles('#source-file',files.length?files:batch);
  await page.waitForFunction(()=>!document.querySelector('#source-file').disabled,{},{timeout:120000});
+ await page.locator('#group-by-infant').uncheck();
  assert.equal(await page.locator('#record-count').innerText(),String(count));assert.equal(await page.locator('#records-table tbody tr').count(),20);assert.equal(await page.locator('#output-ready').isVisible(),true);assert.match(await page.locator('#output-summary').innerText(),new RegExp(String(count)));assert.equal(await page.locator('#quick-export-pdf').isEnabled(),true);
  assert.equal(await page.locator('#results-section').evaluate(el=>el.compareDocumentPosition(document.querySelector('#records'))&Node.DOCUMENT_POSITION_PRECEDING),2);
  await page.waitForTimeout(500);const outputY=await page.locator('#output-ready').evaluate(el=>el.getBoundingClientRect().top);assert.ok(outputY>-200&&outputY<500,`outputY=${outputY}`);
